@@ -17,7 +17,7 @@ const { search } = sourcesStore
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
-const lang = import.meta.env.VITE_LANG as 'fr'|'en'
+const lang = 'fr'
 
 type SimilarItem = {
   hits: number
