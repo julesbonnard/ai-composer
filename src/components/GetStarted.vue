@@ -18,7 +18,7 @@ watch(apiKey, (newValue: string) => {
     </div>
     <div id="content">
       <h1>Get started</h1>
-      <p>Welcome to AI Composer. This webapp is a demonstration of a concept that allows journalists to be assisted by AI in the process of writing articles.</p>
+      <p>Welcome to AI Composer. This webapp allows journalists to be assisted by AI in the process of writing articles.</p>
       <p>It is not a replacement for human writing, but a tool to help journalists to write faster and better. It has been developed with privacy and praticity in mind.</p>
       <p>To understand how it differs from automatic writing, you can read these slides.</p>
 
