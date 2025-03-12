@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Analytics } from '@vercel/analytics/vue'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import SourcesUploader from '../components/SourcesUploader.vue'
 import SourcesList from '../components/SourcesList.vue'
@@ -121,6 +122,7 @@ async function reset () {
 </script>
 
 <template>
+  <Analytics />
   <main>
     <routerView />
     <aside>
