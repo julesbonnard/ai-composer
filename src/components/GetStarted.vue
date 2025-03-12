@@ -12,7 +12,7 @@ watch(apiKey, (newValue: string) => {
 </script>
 
 <template>
-  <div id="settings">
+  <div id="get-started">
     <div id="actions">
       <RouterLink :to="{ name: 'home' }">Close</RouterLink>
     </div>
@@ -35,7 +35,7 @@ watch(apiKey, (newValue: string) => {
 </template>
 
 <style lang="scss" scoped>
-  #settings {
+  #get-started {
     background-color: #fff;
     box-shadow: 10px 0px 15px -3px rgba(0,0,0,0.1);
     height: 100%;

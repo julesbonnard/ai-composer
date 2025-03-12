@@ -124,7 +124,7 @@ async function reset () {
   <main>
     <routerView />
     <aside>
-      <RouterLink class="settings" :to="{ name: 'settings' }">Get started</RouterLink>
+      <RouterLink class="get-started" :to="{ name: 'get-started' }">Get started</RouterLink>
       <SourcesUploader />
       <SourcesList />
       <button class="copy" @click="clipboard">Copy to clipboard</button>
@@ -149,7 +149,7 @@ main {
   grid-template-areas: "aside source article";
   transition: 150ms;
 
-  &:has(> #source-editor), &:has(> #settings) {
+  &:has(> #source-editor), &:has(> #get-started) {
     grid-template-columns: 0.4fr 0.7fr 0.9fr;
   }
 }
@@ -171,7 +171,7 @@ aside {
   //   height: 90vh;
   // }
 
-  button, .settings {
+  button, .get-started {
     background-color: #8232eb; /* Green */
     border: none;
     color: white;
