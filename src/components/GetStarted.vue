@@ -20,7 +20,7 @@ watch(apiKey, (newValue: string) => {
       <h1>Get started</h1>
       <p>Welcome to AI Composer. This webapp allows journalists to be assisted by AI in the process of writing articles.</p>
       <p>It is not a replacement for human writing, but a tool to help journalists to write faster and better. It has been developed with privacy and praticity in mind.</p>
-      <p>To understand how it differs from automatic writing, you can read these slides.</p>
+      <p>To understand how it differs from automatic writing, you can read <a href="https://julesbonnard.github.io/ai-composer/" target="_blank">these slides</a>.</p>
 
       <h2>Mistral API Key</h2>
       <p>Your sources and their embeddings are generated in-browser and stored locally, but you'll need an API key to use the LLM features and generate completions. You can easily get one from Mistral AI <a href="https://console.mistral.ai/api-keys" target="_blank">here</a> (free for experimental use, then pay as you go). It will be saved in the local storage.</p>

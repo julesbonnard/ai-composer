@@ -1,25 +1,20 @@
 # AI Composer
 
-This template should help get you started developing with Vue 3 in Vite.
+Un concept d'assistant rédactionnel pour journalistes
 
-## Recommended IDE Setup
+## Concept
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+AI Composer est un logiciel d'écriture dédié aux journalistes, leur permettant de rédiger plus rapidement leurs articles. Il utilise l'écriture assistée par intelligence artificielle pour compléter les phrases grâce à des informations issues de sources ajoutées préalablement par le rédacteur. Il est également capable de raccourcir les phrases et de proposer des alternatives.
 
-## Type Support for `.vue` Imports in TS
+Pour en savoir plus sur le concept, [lisez les slides](https://julesbonnard.github.io/ai-composer/).
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
+## Demo
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
+L'outil est disponible en ligne à l'adresse suivante : [https://ai-composer.vercel.app](https://ai-composer.vercel.app).
 
-1. Disable the built-in TypeScript Extension
-    1) Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-    2) Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
+Il ne nécessite pas d'authentification et ne stocke pas les données des utilisateurs. En revanche, vous aurez besoin d'ajouter une clé d'API Mistral AI pour générer des suggestions. Vous pouvez en obtenir une gratuitement sur [https://mistral.ai](https://mistral.ai).
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
+L'outil utilise également un outil basique d'analyse d'audience fourni par Vercel.
 
 ## Project Setup
 
@@ -37,10 +32,4 @@ npm run dev
 
 ```sh
 npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
 ```
