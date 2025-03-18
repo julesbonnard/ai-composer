@@ -54,8 +54,8 @@ const autocompletion = async (text: string) => {
               name: similarItem.metadata.title
             }
           ),
+          maxTokens: 100,
           temperature: 0.3,
-          stop: ["."],
           stream: false
         })
         .then(choices => {
@@ -81,8 +81,7 @@ const shorten = async (text: string) => {
   const choices = await getChatCompletion({
     model: 'mistral-small-latest',
     messages: prompts[lang].shorten(text),
-    maxTokens: 300,
-    stop: []
+    maxTokens: 100
   })
 
   if (!choices || choices.length === 0 || !choices[0].message.content) {
@@ -96,8 +95,7 @@ const alternative = async (text: string) => {
   const choices = await getChatCompletion({
     model: 'mistral-small-latest',
     messages: prompts[lang].alternative(text),
-    maxTokens: 300,
-    stop: []
+    maxTokens: 100
   })
 
   if (!choices || choices.length === 0 || !choices[0].message.content) {
