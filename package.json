@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@chat-ui/vue3": "^1.0.11",
+    "@langchain/community": "^0.3.36",
     "@mistralai/mistralai": "^1.5.1",
     "@tiptap/core": "^2.11.5",
     "@tiptap/extension-bubble-menu": "^2.11.5",
@@ -34,6 +35,7 @@
     "idb": "^8.0.2",
     "jenesius-vue-modal": "^1.11.9",
     "lodash.debounce": "^4.0.8",
+    "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.10.38",
     "pinia": "^3.0.1",
     "uuid": "^11.1.0",
