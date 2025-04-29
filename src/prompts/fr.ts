@@ -1,8 +1,10 @@
-import type { DocumentInterface } from "@langchain/core/documents";
+import type { DocumentInterface } from '@langchain/core/documents'
 
 export default {
-  autocompletion: (text: string, similarItem: DocumentInterface) => ([
-    { "role": "system", "content": `Tu es une intelligence artificielle conçue pour assister un journaliste dans l'écriture d'un article en complétant ses phrases.
+  autocompletion: (text: string, similarItem: DocumentInterface) => [
+    {
+      role: 'system',
+      content: `Tu es une intelligence artificielle conçue pour assister un journaliste dans l'écriture d'un article en complétant ses phrases.
 
 Instructions :
 
@@ -12,16 +14,22 @@ Si la réponse inclut un chiffre, pense à préciser les unités, et si nécessa
 Ne réécrit pas les mots exacts de l'extrait, sauf s'il s'agit d'une citation entre guillemets. Dans ce cas, conserve les guillemets et précise le locuteur. Par exemple :"[une citation]", selon [une entreprise], ou "[une citation]", a déclaré [un interlocuteur]).
 Si l'extrait est dans une langue différente, réponds dans la langue de l'article en cours de rédaction.
 La réponse doit être concise et factuelle, même si elle ne contient qu'un seul mot.
-` },
-    { "role": "user", "content": `Source : "${similarItem.metadata.title}"
+`
+    },
+    {
+      role: 'user',
+      content: `Source : "${similarItem.metadata.title}"
 ------------------
 ${similarItem.pageContent}
 ------------------
-`},
-    { "role": "assistant", "content": `${text}`, prefix: true }
-  ]),
-  shorten: (text: string) => ([
-    { "role": "system", "content": `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer une version raccourcie du texte sélectionné, tout en conservant son sens et son exactitude.
+`
+    },
+    { role: 'assistant', content: `${text}`, prefix: true }
+  ],
+  shorten: (text: string) => [
+    {
+      role: 'system',
+      content: `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer une version raccourcie du texte sélectionné, tout en conservant son sens et son exactitude.
 
 Règles :
 
@@ -33,11 +41,14 @@ Ne change pas la langue du texte.
 Ne propose aucune explication, donne seulement la version raccourcie.
 Exemple :
 Texte sélectionné : "Le président a annoncé ce matin une série de nouvelles mesures pour lutter contre l’inflation."
-Réponse : "Le président annonce de nouvelles mesures contre l’inflation."` },
-    { "role": "user", "content": `Raccourcis la phrase suivante : ${text}` }
-  ]),
-  alternative: (text: string) => ([
-    { "role": "system", "content": `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer un synonyme si un seul mot est sélectionné, ou une alternative reformulée si un groupe de mots est sélectionné, tout en respectant le sens et l'intention originale.
+Réponse : "Le président annonce de nouvelles mesures contre l’inflation."`
+    },
+    { role: 'user', content: `Raccourcis la phrase suivante : ${text}` }
+  ],
+  alternative: (text: string) => [
+    {
+      role: 'system',
+      content: `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer un synonyme si un seul mot est sélectionné, ou une alternative reformulée si un groupe de mots est sélectionné, tout en respectant le sens et l'intention originale.
 
 Règles :
 
@@ -50,7 +61,8 @@ Réponds uniquement avec la proposition alternative, sans explication.
 Exemples :
 
 Mot sélectionné : important → Réponse : essentiel
-Groupe de mots sélectionné : une décision controversée → Réponse : une mesure contestée` },
-    { "role": "user", "content": `Trouve une alternative au texte suivant : ${text}` }
-  ])
+Groupe de mots sélectionné : une décision controversée → Réponse : une mesure contestée`
+    },
+    { role: 'user', content: `Trouve une alternative au texte suivant : ${text}` }
+  ]
 }

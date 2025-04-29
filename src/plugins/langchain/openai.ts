@@ -1,10 +1,10 @@
-import { OpenAIEmbeddings, ChatOpenAI } from "@langchain/openai";
+import { OpenAIEmbeddings, ChatOpenAI } from '@langchain/openai'
 
 export function getEmbeddings(model: string) {
   return new OpenAIEmbeddings({
     apiKey: import.meta.env.VITE_OPENAI_APIKEY,
     model
-  });
+  })
 }
 
 export function getLLM(model: string, options?: any) {

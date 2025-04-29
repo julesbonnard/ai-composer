@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Analytics } from '@vercel/analytics/vue'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import SourcesUploader from '../components/SourcesUploader.vue'
 import SourcesList from '../components/SourcesList.vue'
@@ -19,9 +18,7 @@ const lang = 'fr'
 
 function generateCompletion(text: string, similarItem: DocumentInterface) {
   return async () => {
-    let completion = await getChatCompletion(
-      prompts[lang].autocompletion(text, similarItem)
-    )
+    let completion = await getChatCompletion(prompts[lang].autocompletion(text, similarItem))
 
     if (!completion) {
       throw 'No completion found'
@@ -40,12 +37,12 @@ function generateCompletion(text: string, similarItem: DocumentInterface) {
 
 const autocompletion = async (text: string) => {
   const semanticSearch = await similaritySearch(text)
-  
+
   if (!semanticSearch || semanticSearch.length === 0) {
     throw 'No similar items found'
   }
 
-  return semanticSearch.map(semanticResult => generateCompletion(text, semanticResult))
+  return semanticSearch.map((semanticResult) => generateCompletion(text, semanticResult))
 }
 
 const shorten = async (text: string) => {
@@ -71,114 +68,53 @@ const alternative = async (text: string) => {
 async function clipboard() {
   const html = editor.value?.exportHTML()
   if (!html) return false
-  await navigator.clipboard.writeText(html);
+  await navigator.clipboard.writeText(html)
 }
 
-async function reset () {
+async function reset() {
   editorStore.$reset()
   editor.value?.reset()
 }
-
 </script>
 
 <template>
-  <Analytics />
-  <main>
-    <routerView />
-    <aside>
-      <RouterLink class="get-started" :to="{ name: 'get-started' }">Get started</RouterLink>
-      <SourcesUploader />
-      <SourcesList />
-      <button class="copy" @click="clipboard">Copy to clipboard</button>
-      <p class="warning">
-        Keep in mind that artificial intelligence is prone to making a lot of mistakes, so use it at your own risk and be vigilant.
-      </p>
-      <button class="reset" @click="reset">Reset</button>
-    </aside>
-    <article>
-      <TiptapEditor v-model="article" ref="editor" :autocompletion="autocompletion" :shorten="shorten" :alternative="alternative" />
-    </article>
-  </main>
+  <RouterView class="col-start-2 row-start-1" />
+  <aside class="shadow-md flex flex-col">
+    <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
+      Get started
+    </RouterLink>
+    <SourcesUploader class="flex-1" />
+    <SourcesList />
+    <button class="btn btn-soft" @click="clipboard">Copy to clipboard</button>
+    <div role="alert" class="alert alert-warning">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-6 w-6 shrink-0 stroke-current"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        />
+      </svg>
+      <span
+        >Keep in mind that artificial intelligence is prone to making a lot of mistakes, so use it
+        at your own risk and be vigilant.</span
+      >
+    </div>
+    <button class="btn btn-soft" @click="reset">Reset</button>
+  </aside>
+
+  <article class="col-start-3 overflow-y-auto">
+    <TiptapEditor
+      v-model="article"
+      ref="editor"
+      :autocompletion="autocompletion"
+      :shorten="shorten"
+      :alternative="alternative"
+    />
+  </article>
 </template>
-
-<style lang="scss">
-main {
-  height: 100%;
-  display: grid; 
-  grid-template-columns: 0.4fr 0fr 1.6fr; 
-  grid-template-rows: 1fr; 
-  gap: 0px 0px;
-  grid-template-areas: "aside source article";
-  transition: 150ms;
-
-  &:has(> #source-editor), &:has(> #get-started) {
-    grid-template-columns: 0.4fr 0.7fr 0.9fr;
-  }
-}
-aside {
-  grid-area: aside;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: white;
-  // padding: 2rem 1rem 0 2rem;
-  box-shadow: 10px 0px 15px -3px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-
-  // .fixed {
-  //   position: sticky;
-  //   top: 32px;
-  //   width: 100%;
-  //   height: 90vh;
-  // }
-
-  button, .get-started {
-    background-color: #8232eb; /* Green */
-    border: none;
-    color: white;
-    padding: 15px 32px;
-    font-size: 16px;
-    text-align: center;
-    text-decoration: none;
-    width: 100%;
-    cursor: pointer;
-    &:hover {
-      background-color: rgba(#8232eb, 0.9);
-    }
-    &:disabled {
-      cursor: default;
-      background-color: #ccc;
-    }
-    &.copy {
-      margin-top: auto;
-    }
-    &.reset {
-      padding: 7px 24px;
-      font-size: 14px;
-    }
-  }
-
-  .warning {
-    margin: 2rem 14px;
-    color: #8232eb;
-    text-align: center;
-    justify-self: end;
-  }
-}
-article {
-  grid-area: article;
-  padding-bottom: 12em;
-  caret-color: #8232eb;
-  position: relative;
-  height: 100%;
-  overflow-y: auto;
-}
-footer {
-  grid-area: footer;
-}
-.ai-generated {
-  text-decoration-color: lightcoral;
-  text-decoration-line: underline;
-}
-</style>

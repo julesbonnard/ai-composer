@@ -1,40 +1,39 @@
-@import './base.css';
+@import 'tailwindcss';
+@plugin "@tailwindcss/typography";
+@plugin "daisyui";
+@plugin "@iconify/tailwind4";
 
-html, body {
-  height: 100%;
-  overscroll-behavior-y: none;
-}
-
-#app {
-  /* max-width: 1280px; */
-  margin: 0 auto;
-  /* padding: 2rem; */
-  height: 100%;
-  font-weight: normal;
-}
-
-/* a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-} */
-
-@media (min-width: 1024px) {
-  /* body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  } */
+@plugin "daisyui/theme" {
+  name: 'aicomposer';
+  default: true;
+  prefersdark: false;
+  color-scheme: 'light';
+  --color-base-100: oklch(97% 0.017 320.058);
+  --color-base-200: oklch(95% 0.037 318.852);
+  --color-base-300: oklch(90% 0.076 319.62);
+  --color-base-content: oklch(21% 0.034 264.665);
+  --color-primary: oklch(51% 0.253 323.949);
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(39% 0.195 277.366);
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(85% 0.199 91.936);
+  --color-accent-content: oklch(26% 0.051 172.552);
+  --color-neutral: oklch(44% 0.03 256.802);
+  --color-neutral-content: oklch(98% 0.002 247.839);
+  --color-info: oklch(45% 0.085 224.283);
+  --color-info-content: oklch(98% 0.019 200.873);
+  --color-success: oklch(45% 0.124 130.933);
+  --color-success-content: oklch(98% 0.031 120.757);
+  --color-warning: oklch(64% 0.222 41.116);
+  --color-warning-content: oklch(98% 0.022 95.277);
+  --color-error: oklch(45% 0.188 13.697);
+  --color-error-content: oklch(97% 0.014 343.198);
+  --radius-selector: 1rem;
+  --radius-field: 0rem;
+  --radius-box: 0rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.28125rem;
+  --border: 0.5px;
+  --depth: 0;
+  --noise: 0;
 }

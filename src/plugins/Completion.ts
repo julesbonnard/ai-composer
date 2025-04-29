@@ -12,7 +12,7 @@ const Completion = Highlight.extend({
       default: ''
     }
   })
-}).configure({ 
+}).configure({
   HTMLAttributes: {
     class: 'completion'
   }

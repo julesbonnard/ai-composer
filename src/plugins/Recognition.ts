@@ -6,10 +6,10 @@ const Recognition = Highlight.extend({
   parseHTML: () => [{ tag: 'mark.recognition' }],
   addAttributes: () => ({
     title: {
-      default: '',
+      default: ''
     }
   })
-}).configure({ 
+}).configure({
   HTMLAttributes: {
     class: 'recognition'
   }

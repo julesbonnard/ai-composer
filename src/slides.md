@@ -38,8 +38,6 @@ Un concept d'assistant rédactionnel pour journalistes
 
 - **Confidentialité** : La plupart des outils ne permettent pas de garder les sources à l'abri
 
-
-
 ---
 
 ## Solution : l'auto-complétion
@@ -101,4 +99,3 @@ Un concept d'assistant rédactionnel pour journalistes
 - Émergence d'alternatives
   - Tiptap Autocompletion (uniquement avec OpenAI et pas de contexte local)
   - ChatGPT ou Mistral Canvas
-

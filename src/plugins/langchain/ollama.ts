@@ -1,4 +1,4 @@
-import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
+import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama'
 
 export function getEmbeddings(model: string) {
   return new OllamaEmbeddings({
@@ -18,5 +18,5 @@ export function getLLM(model: string, options?: any) {
     model,
     ...defaultOptions,
     ...options
-  });
+  })
 }

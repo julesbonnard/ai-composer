@@ -18,18 +18,17 @@ import Headline from '@/plugins/Headline'
 import Limit from '@/plugins/Limit'
 import Completion from '@/plugins/Completion'
 import Autocompletion from '@/plugins/Autocompletion'
-import type { AIMessageChunk, MessageContent } from '@langchain/core/messages';
-import type { DocumentInterface } from '@langchain/core/documents';
+import type { AIMessageChunk } from '@langchain/core/messages'
 
 const Article = Document.extend({
-  content: 'headline lead (paragraph|heading)*',
+  content: 'headline lead (paragraph|heading)*'
 })
 
 const wordCount = ref(0)
 const editor = useEditor({
   content: props.modelValue,
   extensions: [
-  StarterKit.configure({
+    StarterKit.configure({
       document: false,
       heading: {
         levels: [2]
@@ -85,19 +84,23 @@ const editor = useEditor({
   injectCSS: true
 })
 
-function countWords () {
+function countWords() {
   const nodes = (editor.value?.state.doc.content as any).content
 
-    wordCount.value = nodes
-      .filter((_: any, i: number) => i > 0) // Remove title from word count
-      .reduce((acc: number, d: Node) => d.textContent ? acc + d.textContent.split(' ').filter(d => d !== '').length : acc, 0)
+  wordCount.value = nodes
+    .filter((_: any, i: number) => i > 0) // Remove title from word count
+    .reduce(
+      (acc: number, d: Node) =>
+        d.textContent ? acc + d.textContent.split(' ').filter((d) => d !== '').length : acc,
+      0
+    )
 }
 
-function reset () {
+function reset() {
   editor.value?.commands.clearContent()
 }
 
-function exportHTML () {
+function exportHTML() {
   return editor.value?.getHTML()
 }
 
@@ -113,139 +116,89 @@ const wordCountMax = computed(() => {
 </script>
 
 <template>
-  <div id="progress-container">
-    <div id="progress" :style="`width: ${wordCount/wordCountMax*100}%`"></div>
-    <div class="bar" :style="`left: ${200/wordCountMax*100}%`">200 words</div>
-    <div class="bar" :style="`left: ${400/wordCountMax*100}%`">400</div>
-    <div class="bar" :style="`left: ${600/wordCountMax*100}%`">600</div>
-    <div class="bar" :style="`left: ${800/wordCountMax*100}%`">800</div>
+  <div class="sticky top-0 overflow-x-hidden text-right text-xs pr-1 z-50">
+    <div :style="`width: ${(wordCount / wordCountMax) * 100}%`" class="h-5 bg-neutral/50"></div>
+    <div
+      v-for="step in [200, 400, 600, 800]"
+      :key="step"
+      class="absolute top-0 border-l border-black pl-1 text-neutral-content text-xs"
+      :style="`left: ${(step / wordCountMax) * 100}%`"
+    >
+      {{ step }}{{ step === 200 ? ' words' : '' }}
+    </div>
   </div>
-  <bubble-menu
-    id="bubble-menu"
-    :editor="editor"
-    :tippy-options="{ duration: 100 }"
-    v-if="editor"
-  >
-    <button @click="editor.chain().focus().shorten().run()">
+
+  <bubble-menu v-if="editor" :editor="editor" :tippy-options="{ duration: 100 }" class="z-10">
+    <button class="btn btn-neutral btn-sm" @click="editor.chain().focus().shorten().run()">
       shorten
     </button>
-    <button @click="editor.chain().focus().alternative().run()">
+    <button class="btn btn-neutral btn-sm" @click="editor.chain().focus().alternative().run()">
       alternative
     </button>
-    <button v-show="editor.isActive('completion')" @click="editor.chain().focus().unsetMark('completion').run()">
+    <button
+      v-show="editor.isActive('completion')"
+      class="btn btn-neutral btn-sm"
+      @click="editor.chain().focus().unsetMark('completion').run()"
+    >
       review
     </button>
   </bubble-menu>
-  <editor-content id="article" :editor="editor" spellcheck="true" />
+
+  <editor-content :editor="editor" spellcheck="true" class="m-5" />
 </template>
 
-<style lang="scss">
-#progress-container {
-  position: sticky;
-  top: 0px;
-  width: 100%;
-  overflow-x: hidden;
-  color: white;
-  text-align: right;
-  font-size: 0.7rem;
-  padding-right: 4px;
-  text-shadow: 0px 0px 3px rgba(0, 0, 0, 1);
+<style>
+@reference "@/assets/main.css";
 
-  #progress {
-    background-color: rgba(#8232eb, 0.5);
-    height: 1.2rem;
-  }
-
-  .bar {
-    position: absolute;
-    top: 0px;
-    border-left: 1px solid black;
-    padding-left: 2px;
-  }
+.ProseMirror {
+  @apply p-3 whitespace-break-spaces break-words break-all mt-10 ml-5;
 }
 
-#bubble-menu {
-  button {
-    border: none;
-    background-color: #8232eb;
-    padding: 4px 6px;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    &:hover {
-      background-color: rgba(#8232eb, 0.6);
-    }
-  }
+.ProseMirror:focus {
+  @apply outline-none;
 }
 
-/* Basic editor styles */
-#article {
-  .ProseMirror {
-    padding: 0.75em;
-    white-space: break-spaces;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    font-size: 1.2rem;
-    margin-top: 5em;
-    margin-left: 50px;
-
-    &:focus {
-      outline: 0px solid transparent;
-    }
-
-    > * + * {
-      margin-top: 0.75em;
-    }
-
-    h1 {
-      font-size: 2.4rem;
-    }
-
-    .lead {
-      font-size: 1.4rem;
-    }
-
-    .unvalid {
-      background-color: lightpink;
-    }
-
-    .lead, strong {
-      font-weight: bold;
-    }
-
-    .completion {
-      text-decoration: underline;
-      text-decoration-style: dotted;
-      background-color: inherit;
-    }
-  }
-
-  /* Placeholder (on every new line) */
-  .ProseMirror .is-empty::before {
-    content: attr(data-placeholder);
-    float: left;
-    color: #ced4da;
-    pointer-events: none;
-    height: 0;
-  }
-
-  /* Autocompletion (on every new line) */
-  .ProseMirror .autocompletion::after {
-    content: attr(data-autocompletion);
-    pointer-events: none;
-    color: transparent;
-    background: linear-gradient( 90.4deg,  rgba(244,199,62,1) -3.8%, rgba(244,62,62,1) 46.8%, rgba(245,61,195,1) 98.8% );
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .ProseMirror .autocompletion.inline {
-    color: transparent;
-    background: linear-gradient( 90.4deg,  rgba(244,199,62,1) -3.8%, rgba(244,62,62,1) 46.8%, rgba(245,61,195,1) 98.8% );
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
+.ProseMirror > * + * {
+  @apply mt-3;
 }
 
+.ProseMirror h1 {
+  @apply text-4xl font-semibold;
+}
+
+.ProseMirror .lead {
+  @apply text-xl font-semibold;
+}
+
+.ProseMirror .unvalid {
+  @apply text-error;
+}
+
+.ProseMirror strong {
+  @apply font-semibold;
+}
+
+.ProseMirror .completion {
+  @apply underline decoration-dotted bg-inherit;
+}
+
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  @apply float-left text-neutral/20 pointer-events-none h-0;
+}
+
+.ProseMirror .autocompletion::after,
+.ProseMirror .autocompletion.inline {
+  content: attr(data-autocompletion);
+  pointer-events: none;
+  background: linear-gradient(
+    90.4deg,
+    rgba(244, 199, 62, 1) -3.8%,
+    rgba(244, 62, 62, 1) 46.8%,
+    rgba(245, 61, 195, 1) 98.8%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
 </style>
