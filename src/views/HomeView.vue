@@ -5,104 +5,67 @@ import SourcesUploader from '../components/SourcesUploader.vue'
 import SourcesList from '../components/SourcesList.vue'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '@/stores/editor'
-import { useSourcesStore } from '@/stores/sources'
 import { ref } from 'vue'
-import { getChatCompletion } from '@/plugins/llm'
+import { getChatCompletion, similaritySearch } from '@/plugins/langchain'
 import prompts from '../prompts/index'
+import type { DocumentInterface } from '@langchain/core/documents'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
-
-const sourcesStore = useSourcesStore()
-const { search } = sourcesStore
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
 const lang = 'fr'
 
-type SimilarItem = {
-  hits: number
-  id: string
-  metadata: {
-    title: string
+function generateCompletion(text: string, similarItem: DocumentInterface) {
+  return async () => {
+    let completion = await getChatCompletion(
+      prompts[lang].autocompletion(text, similarItem)
+    )
+
+    if (!completion) {
+      throw 'No completion found'
+    }
+
+    if (typeof completion.content === 'string' && completion.content.startsWith(text)) {
+      completion.content = completion.content.slice(text.length)
+    }
+
+    return {
+      answer: completion.content,
+      context: similarItem
+    }
   }
-  text: string
-  score: number
-  timestamp: number
 }
 
 const autocompletion = async (text: string) => {
-  const semanticSearch = await search(text)
+  const semanticSearch = await similaritySearch(text)
   
-  if (!semanticSearch || semanticSearch.similarItems.length === 0) {
+  if (!semanticSearch || semanticSearch.length === 0) {
     throw 'No similar items found'
   }
 
-  return (semanticSearch.similarItems as SimilarItem[]).map(similarItem => 
-   (() => {
-    let cachedPromise: Promise<any> | null = null
-    
-    return () => {
-      if (cachedPromise) {
-        return cachedPromise
-      } else {
-        cachedPromise = getChatCompletion({
-          model: 'mistral-small-latest',
-          messages: prompts[lang].autocompletion(
-            text, {
-              content: similarItem.text, 
-              name: similarItem.metadata.title
-            }
-          ),
-          maxTokens: 100,
-          temperature: 0.3,
-          stream: false
-        })
-        .then(choices => {
-          if (!choices || choices.length === 0 || !choices[0].message.content) {
-            throw 'No completion found'
-          }
-          return {
-            answer: choices[0].message.content.slice(text.length),
-            context: {
-              content: similarItem.text,
-              name: similarItem.metadata.title,
-              id: similarItem.id
-            }
-          }
-        })
-        return cachedPromise
-      }
-    }
-  })())
+  return semanticSearch.map(semanticResult => generateCompletion(text, semanticResult))
 }
 
 const shorten = async (text: string) => {
-  const choices = await getChatCompletion({
-    model: 'mistral-small-latest',
-    messages: prompts[lang].shorten(text),
-    maxTokens: 100
-  })
+  const result = await getChatCompletion(prompts[lang].shorten(text))
 
-  if (!choices || choices.length === 0 || !choices[0].message.content) {
+  if (!result) {
     throw 'No completion found'
   }
 
-  return choices[0].message.content as string
+  return result
 }
 
 const alternative = async (text: string) => {
-  const choices = await getChatCompletion({
-    model: 'mistral-small-latest',
-    messages: prompts[lang].alternative(text),
-    maxTokens: 100
-  })
+  const result = await getChatCompletion(prompts[lang].alternative(text))
 
-  if (!choices || choices.length === 0 || !choices[0].message.content) {
+  if (!result) {
     throw 'No completion found'
   }
 
-  return choices[0].message.content as string
+  return result
 }
 
 async function clipboard() {
@@ -112,7 +75,6 @@ async function clipboard() {
 }
 
 async function reset () {
-  await sourcesStore.$reset()
   editorStore.$reset()
   editor.value?.reset()
 }

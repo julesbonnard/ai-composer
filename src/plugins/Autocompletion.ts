@@ -1,4 +1,5 @@
-import { Editor, Extension } from '@tiptap/core'
+import type { DocumentInterface } from '@langchain/core/documents'
+import { Extension } from '@tiptap/core'
 import { Node } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view'
@@ -22,11 +23,7 @@ export interface AutocompletionOptions {
 
 type Completion = {
   answer: string
-  context: {
-    content: string
-    id: string
-    name: string
-  }
+  context: DocumentInterface
 }
 
 export interface AutocompletionStorage {
@@ -58,8 +55,9 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
   addStorage() {
     const suggestCompletion = async (view: EditorView, node: Node, pos: number, availableCompletions: (() => Promise<Completion>)[], currentCompletionIndex: number) => {
-      const { answer, context } = await availableCompletions[currentCompletionIndex]()
-      const decoration = Decoration.node(pos, pos + node.nodeSize, { class: 'autocompletion', 'data-autocompletion': `${answer} (${context.name})` })
+      const result = await availableCompletions[currentCompletionIndex]()
+      const { answer, context } = result
+      const decoration = Decoration.node(pos, pos + node.nodeSize, { class: 'autocompletion', 'data-autocompletion': `${answer} (${context.metadata.title})` })
       view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'add', decoration, availableCompletions, currentCompletionIndex, currentCompletion: { answer, context } }))
     }
 
@@ -95,7 +93,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       alternative,
       availableCompletions: [],
       currentCompletionIndex: 0,
-      currentCompletion: { answer: '', context: { id: '', name: '', content: '' } },
+      currentCompletion: { answer: '', context: { id: '', pageContent: '', metadata: { name: '' } } },
       setPlaceholder: (view: EditorView, node: Node, pos: number) => {
         const decoration = Decoration.node(pos, pos + node.nodeSize, { class: 'autocompletion', 'data-autocompletion': '...' })
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'add', decoration }))
@@ -135,7 +133,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
               } else if (action == 'reset') {
                 this.storage.availableCompletions = []
                 this.storage.currentCompletionIndex = 0
-                this.storage.currentCompletion = { answer: '', context: { name: '', content: '', id: '' } }
+                this.storage.currentCompletion = { answer: '', context: { metadata: { name: '' }, pageContent: '', id: '' } }
               }
             }
             return set
@@ -206,7 +204,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
             }
           })
         } else if (this.storage.currentCompletion.answer) {
-          this.editor.chain().insertContent(`<mark class="completion" data-id="${this.storage.currentCompletion.context.id}" title="${this.storage.currentCompletion.context.name}">${this.storage.currentCompletion.answer}</mark> `).run()
+          this.editor.chain().insertContent(`<mark class="completion" data-id="${this.storage.currentCompletion.context.id}" title="${this.storage.currentCompletion.context.metadata.title}">${this.storage.currentCompletion.answer}</mark> `).run()
           this.editor.view.dispatch(this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' }))
           this.storage.unsetDecorations(this.editor.view)
         }

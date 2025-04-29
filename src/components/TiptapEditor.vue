@@ -2,8 +2,8 @@
 const props = defineProps<{
   modelValue?: Object
   autocompletion: (text: string) => Promise<any>
-  shorten: (text: string) => Promise<string>
-  alternative: (text: string) => Promise<string>
+  shorten: (text: string) => Promise<AIMessageChunk>
+  alternative: (text: string) => Promise<AIMessageChunk>
 }>()
 
 const emits = defineEmits(['update:modelValue'])
@@ -18,6 +18,8 @@ import Headline from '@/plugins/Headline'
 import Limit from '@/plugins/Limit'
 import Completion from '@/plugins/Completion'
 import Autocompletion from '@/plugins/Autocompletion'
+import type { AIMessageChunk, MessageContent } from '@langchain/core/messages';
+import type { DocumentInterface } from '@langchain/core/documents';
 
 const Article = Document.extend({
   content: 'headline lead (paragraph|heading)*',

@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { getApiKey, setApiKey } from '@/plugins/llm';
+// import { getApiKey, setApiKey } from '@/plugins/llm';
 import { ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
-const apiKey = ref(getApiKey());
+// const apiKey = ref(getApiKey());
+const apiKey = ref('')
 
-watch(apiKey, (newValue: string) => {
-  setApiKey(newValue);
-});
+// watch(apiKey, (newValue: string) => {
+//   setApiKey(newValue);
+// });
 
 </script>
 

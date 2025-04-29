@@ -1,7 +1,7 @@
-import type { ChatCompletionRequest } from "@mistralai/mistralai/models/components";
+import type { DocumentInterface } from "@langchain/core/documents";
 
 export default {
-  autocompletion: (text: string, { content, name }: { content: string, name: string }): ChatCompletionRequest["messages"] => ([
+  autocompletion: (text: string, similarItem: DocumentInterface) => ([
     { "role": "system", "content": `Tu es une intelligence artificielle conçue pour assister un journaliste dans l'écriture d'un article en complétant ses phrases.
 
 Instructions :
@@ -13,14 +13,14 @@ Ne réécrit pas les mots exacts de l'extrait, sauf s'il s'agit d'une citation e
 Si l'extrait est dans une langue différente, réponds dans la langue de l'article en cours de rédaction.
 La réponse doit être concise et factuelle, même si elle ne contient qu'un seul mot.
 ` },
-    { "role": "user", "content": `Source : "${name}"
+    { "role": "user", "content": `Source : "${similarItem.metadata.title}"
 ------------------
-${content}
+${similarItem.pageContent}
 ------------------
 `},
     { "role": "assistant", "content": `${text}`, prefix: true }
   ]),
-  shorten: (text: string) : ChatCompletionRequest["messages"] => ([
+  shorten: (text: string) => ([
     { "role": "system", "content": `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer une version raccourcie du texte sélectionné, tout en conservant son sens et son exactitude.
 
 Règles :
@@ -36,7 +36,7 @@ Texte sélectionné : "Le président a annoncé ce matin une série de nouvelles
 Réponse : "Le président annonce de nouvelles mesures contre l’inflation."` },
     { "role": "user", "content": `Raccourcis la phrase suivante : ${text}` }
   ]),
-  alternative: (text: string): ChatCompletionRequest["messages"] => ([
+  alternative: (text: string) => ([
     { "role": "system", "content": `Tu es une IA assistante d’édition pour un journaliste. Ta mission est de proposer un synonyme si un seul mot est sélectionné, ou une alternative reformulée si un groupe de mots est sélectionné, tout en respectant le sens et l'intention originale.
 
 Règles :
