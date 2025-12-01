@@ -9,7 +9,8 @@ const props = defineProps<{
 const emits = defineEmits(['update:modelValue'])
 
 import { ref, computed } from 'vue'
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/vue-3'
+import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { BubbleMenu } from '@tiptap/vue-3/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Document from '@tiptap/extension-document'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -118,12 +119,9 @@ const wordCountMax = computed(() => {
 <template>
   <div class="sticky top-0 overflow-x-hidden text-right text-xs pr-1 z-50">
     <div :style="`width: ${(wordCount / wordCountMax) * 100}%`" class="h-5 bg-neutral/50"></div>
-    <div
-      v-for="step in [200, 400, 600, 800]"
-      :key="step"
+    <div v-for="step in [200, 400, 600, 800]" :key="step"
       class="absolute top-0 border-l border-black pl-1 text-neutral-content text-xs"
-      :style="`left: ${(step / wordCountMax) * 100}%`"
-    >
+      :style="`left: ${(step / wordCountMax) * 100}%`">
       {{ step }}{{ step === 200 ? ' words' : '' }}
     </div>
   </div>
@@ -135,11 +133,8 @@ const wordCountMax = computed(() => {
     <button class="btn btn-neutral btn-sm" @click="editor.chain().focus().alternative().run()">
       alternative
     </button>
-    <button
-      v-show="editor.isActive('completion')"
-      class="btn btn-neutral btn-sm"
-      @click="editor.chain().focus().unsetMark('completion').run()"
-    >
+    <button v-show="editor.isActive('completion')" class="btn btn-neutral btn-sm"
+      @click="editor.chain().focus().unsetMark('completion').run()">
       review
     </button>
   </bubble-menu>
@@ -158,7 +153,7 @@ const wordCountMax = computed(() => {
   @apply outline-none;
 }
 
-.ProseMirror > * + * {
+.ProseMirror>*+* {
   @apply mt-3;
 }
 
@@ -191,12 +186,10 @@ const wordCountMax = computed(() => {
 .ProseMirror .autocompletion.inline {
   content: attr(data-autocompletion);
   pointer-events: none;
-  background: linear-gradient(
-    90.4deg,
-    rgba(244, 199, 62, 1) -3.8%,
-    rgba(244, 62, 62, 1) 46.8%,
-    rgba(245, 61, 195, 1) 98.8%
-  );
+  background: linear-gradient(90.4deg,
+      rgba(244, 199, 62, 1) -3.8%,
+      rgba(244, 62, 62, 1) 46.8%,
+      rgba(245, 61, 195, 1) 98.8%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
