@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '@/views/HomeView.vue'
-import GetStarted from '@/components/GetStarted.vue'
+import HomeView from '../views/HomeView.vue'
+import GetStarted from '../components/GetStarted.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,12 +18,12 @@ const router = createRouter({
         {
           path: '/sources/:id',
           name: 'source',
-          component: () => import('@/components/SourceEditor.vue')
+          component: () => import('../components/SourceEditor.vue')
         },
         {
           path: '/sources/new',
           name: 'new-source',
-          component: () => import('@/components/SourceEditor.vue')
+          component: () => import('../components/SourceEditor.vue')
         }
       ]
     }

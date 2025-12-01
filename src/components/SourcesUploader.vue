@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSourcesStore } from '@/stores/sources'
+import { useSourcesStore } from '../stores/sources'
 import { useDropzone } from 'vue3-dropzone'
 import { useRouter } from 'vue-router'
 import type * as pdfjsLib from 'pdfjs-dist'
@@ -45,7 +45,8 @@ async function onDrop(acceptFiles: any[]) {
         lastItemStr = item.str
       })
     }
-    await addSource(pdfText, file.name)
+    const { id } = await addSource(pdfText, file.name)
+    router.push({ name: 'source', params: { id } })
   }
   reader.readAsArrayBuffer(file)
 }

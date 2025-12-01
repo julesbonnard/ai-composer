@@ -13,11 +13,11 @@ import { useEditor, EditorContent, BubbleMenu } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Document from '@tiptap/extension-document'
 import Placeholder from '@tiptap/extension-placeholder'
-import Lead from '@/plugins/Lead'
-import Headline from '@/plugins/Headline'
-import Limit from '@/plugins/Limit'
-import Completion from '@/plugins/Completion'
-import Autocompletion from '@/plugins/Autocompletion'
+import Lead from '../plugins/Lead'
+import Headline from '../plugins/Headline'
+import Limit from '../plugins/Limit'
+import Completion from '../plugins/Completion'
+import Autocompletion from '../plugins/Autocompletion'
 import type { AIMessageChunk } from '@langchain/core/messages'
 
 const Article = Document.extend({
@@ -148,7 +148,7 @@ const wordCountMax = computed(() => {
 </template>
 
 <style>
-@reference "@/assets/main.css";
+@reference "../assets/main.css";
 
 .ProseMirror {
   @apply p-3 whitespace-break-spaces break-words break-all mt-10 ml-5;

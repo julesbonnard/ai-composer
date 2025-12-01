@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { addDocuments, similaritySearch } from '@/plugins/langchain'
+import { addDocuments, similaritySearch } from '../plugins/langchain'
 import { Document } from '@langchain/core/documents'
 import { v4 as uuidv4 } from 'uuid'
 // import { VectorStorage, type IVSDocument } from "@/plugins/VectorStorage"
@@ -8,12 +8,13 @@ import { v4 as uuidv4 } from 'uuid'
 // const vectorStore = new VectorStorage()
 
 interface DocMetadata {
+  id: string
   title: string
 }
 
 interface Source extends DocMetadata {
-  id: string
   content: string
+  embeddings: boolean
 }
 
 export const useSourcesStore = defineStore('sources', () => {
@@ -31,18 +32,35 @@ export const useSourcesStore = defineStore('sources', () => {
   }
   loadSources()
 
-  async function addSource(content: string, title: string) {
-    // const doc = await vectorStore.addText(content, { title: title })
-    // await loadSources()
-    // return doc
-    const id = uuidv4()
-    await addDocuments([
-      new Document({ id: uuidv4(), pageContent: content, metadata: { title: title } })
+  async function generateVectors (source: Source) {
+    const chunkWithVectors = await addDocuments([
+      new Document({ pageContent: source.content, metadata: { title: source.title, id: source.id } })
     ])
-    return { id }
+    const storedSource = getSourceById(source.id)
+    if (storedSource) storedSource.embeddings = true
   }
 
-  async function deleteSourceById(id: string) {
+  async function addSource(content: string, title: string) {
+    const id = uuidv4()
+    const source = {
+      id,
+      title,
+      content,
+      embeddings: false
+    }
+    sources.value.push(source)
+    try {
+      generateVectors(source)
+    } catch (err) {
+      console.error(err)
+      deleteSourceById(id)
+    }
+    
+    return source
+  }
+
+  function deleteSourceById(id: string) {
+    sources.value = sources.value.filter(d => d.id !== id)
     // await vectorStore.deleteDocumentById(id)
     // await loadSources()
   }

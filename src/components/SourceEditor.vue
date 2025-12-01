@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { useSourcesStore } from '@/stores/sources'
+import { useSourcesStore } from '../stores/sources'
 import { useRouter, useRoute } from 'vue-router'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import Document from '@tiptap/extension-document'
@@ -84,10 +84,10 @@ async function save() {
   if (route.name === 'source') {
     await deleteSourceById(route.params.id as string)
   }
-  const doc = await addSource(content, title)
+  const { id } = await addSource(content, title)
 
   if (route.name === 'new-source') {
-    router.push({ name: 'source', params: { id: doc.id } })
+    router.push({ name: 'source', params: { id } })
   }
 }
 </script>

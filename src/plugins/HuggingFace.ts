@@ -1,0 +1,45 @@
+import { useStorage, StorageSerializers } from '@vueuse/core'
+import { oauthLoginUrl, oauthHandleRedirectIfPresent } from '@huggingface/hub'
+import { InferenceClient } from '@huggingface/inference'
+import { computed } from 'vue'
+
+export const hfToken = useStorage('ai-composer-oauth', null, localStorage, {
+  serializer: StorageSerializers.object
+})
+
+export async function handleHfLoginRedirect() {
+  const result = await oauthHandleRedirectIfPresent()
+  if (result) {
+    hfToken.value = result
+  }
+}
+
+export async function handleHfLogin() {
+  window.location.href =
+    (await oauthLoginUrl({
+      clientId: import.meta.env.VITE_OAUTH_CLIENT_ID,
+      scopes: import.meta.env.VITE_OAUTH_SCOPES,
+      redirectUrl: import.meta.env.VITE_OAUTH_REDIRECT_URL
+    })) + '&prompt=consent'
+}
+
+export const inferenceClient = computed(() => new InferenceClient(hfToken.value?.accessToken))
+
+// async function testInference () {
+//   const client = new HfInference(oauthResult.value.accessToken)
+//   const chatCompletion = await client.chatCompletion({
+//       provider: "together",
+//       model: "mistralai/Mistral-Small-24B-Instruct-2501",
+//       messages: [
+//           {
+//               role: "user",
+//               content: "Qu'est-ce qui est jaune et qui attend ?",
+//           },
+//       ],
+//   });
+//   testInferenceResult.value = chatCompletion.choices[0].message.content as string
+// }
+
+// if (oauthResult.value) {
+//   // testInference()
+// }

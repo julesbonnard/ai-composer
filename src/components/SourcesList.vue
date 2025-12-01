@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSourcesStore } from '@/stores/sources'
+import { useSourcesStore } from '../stores/sources'
 import { storeToRefs } from 'pinia'
 
 import { useRoute } from 'vue-router'
@@ -26,6 +26,7 @@ const { sources } = storeToRefs(sourcesStore)
         :to="{ name: 'source', params: { id: source.id } }"
         class="no-underline text-purple-700 hover:underline"
       >
+        <span v-if="source.embeddings == false" class="loading loading-spinner loading-sm"></span>
         {{ source.title }}
       </router-link>
     </li>

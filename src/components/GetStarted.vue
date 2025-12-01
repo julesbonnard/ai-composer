@@ -1,14 +1,5 @@
 <script setup lang="ts">
-// import { getApiKey, setApiKey } from '@/plugins/llm';
-import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-
-// const apiKey = ref(getApiKey());
-const apiKey = ref('')
-
-// watch(apiKey, (newValue: string) => {
-//   setApiKey(newValue);
-// });
 </script>
 
 <template>
@@ -34,7 +25,7 @@ const apiKey = ref('')
         >.
       </p>
 
-      <h2 class="mb-2 font-semibold">Mistral API Key</h2>
+      <!-- <h2 class="mb-2 font-semibold">Mistral API Key</h2>
       <p class="mb-4">
         Your sources and their embeddings are generated in-browser and stored locally, but you'll
         need an API key to use the LLM features and generate completions. You can easily get one
@@ -49,7 +40,10 @@ const apiKey = ref('')
         The app currently uses the mistral-small LLM model, and will allow you to use a self-hosted
         version is a near future.
       </p>
-      <p class="mb-4">This webapp is not affiliated with Mistral AI.</p>
+      <p class="mb-4">This webapp is not affiliated with Mistral AI.</p> -->
+
+      <!-- <SigninHF class="mx-auto cursor-pointer" @click="handleHfLogin" />
+      <p>{{ testInferenceResult }}</p> -->
 
       <h2 class="mb-3 font-semibold">How to</h2>
       <p class="mb-4">

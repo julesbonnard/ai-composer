@@ -1,13 +1,13 @@
 import { OpenAIEmbeddings, ChatOpenAI } from '@langchain/openai'
 
-export function getEmbeddings(model: string) {
+export function getEmbeddings(model: string = 'text-embedding-3-large') {
   return new OpenAIEmbeddings({
     apiKey: import.meta.env.VITE_OPENAI_APIKEY,
     model
   })
 }
 
-export function getLLM(model: string, options?: any) {
+export function getLLM(model: string = 'gpt-4', options?: any) {
   const defaultOptions = {
     temperature: 0.3,
     maxTokens: undefined,

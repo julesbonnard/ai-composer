@@ -2,10 +2,12 @@
 import TiptapEditor from '../components/TiptapEditor.vue'
 import SourcesUploader from '../components/SourcesUploader.vue'
 import SourcesList from '../components/SourcesList.vue'
+import SigninHF from '../components/SigninHF.vue'
+import { hfToken } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
-import { useEditorStore } from '@/stores/editor'
+import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { getChatCompletion, similaritySearch } from '@/plugins/langchain'
+import { getChatCompletion, similaritySearch } from '../plugins/langchain'
 import prompts from '../prompts/index'
 import type { DocumentInterface } from '@langchain/core/documents'
 
@@ -19,6 +21,7 @@ const lang = 'fr'
 function generateCompletion(text: string, similarItem: DocumentInterface) {
   return async () => {
     let completion = await getChatCompletion(prompts[lang].autocompletion(text, similarItem))
+    console.log(completion)
 
     if (!completion) {
       throw 'No completion found'
@@ -37,6 +40,7 @@ function generateCompletion(text: string, similarItem: DocumentInterface) {
 
 const autocompletion = async (text: string) => {
   const semanticSearch = await similaritySearch(text)
+  console.log(semanticSearch)
 
   if (!semanticSearch || semanticSearch.length === 0) {
     throw 'No similar items found'
@@ -78,14 +82,22 @@ async function reset() {
 </script>
 
 <template>
-  <RouterView class="col-start-2 row-start-1" />
-  <aside class="shadow-md flex flex-col">
-    <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
+  <aside class="shadow-md flex flex-col min-w-[300px]">
+    <!-- <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
       Get started
-    </RouterLink>
-    <SourcesUploader class="flex-1" />
+    </RouterLink> -->
+    <SigninHF v-if="!hfToken" class="mx-auto btn btn-ghost" />
+    <div v-if="hfToken">
+      <div class="avatar">
+        <div class="w-24 rounded">
+          <img :src="hfToken.userInfo.picture" />
+        </div>
+      </div>
+      <button class="btn btn-block btn-error" @click="hfToken = null">Logout</button>
+    </div>
+    <SourcesUploader />
     <SourcesList />
-    <button class="btn btn-soft" @click="clipboard">Copy to clipboard</button>
+    <button class="btn btn-soft mt-auto" @click="clipboard">Copy to clipboard</button>
     <div role="alert" class="alert alert-warning">
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -107,6 +119,8 @@ async function reset() {
     </div>
     <button class="btn btn-soft" @click="reset">Reset</button>
   </aside>
+
+  <RouterView class="col-start-2 row-start-1" />
 
   <article class="col-start-3 overflow-y-auto">
     <TiptapEditor
