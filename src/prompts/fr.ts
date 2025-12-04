@@ -24,7 +24,7 @@ ${similarItem.pageContent}
 ------------------
 `
     },
-    { role: 'assistant', content: `${text}`, prefix: true }
+    { role: 'user', content: `${text}`, prefix: true }
   ],
   shorten: (text: string) => [
     {
