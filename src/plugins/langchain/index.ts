@@ -7,14 +7,15 @@ const aiProviders = {
   mistralai: () => import("./mistralai"),
   huggingface: () => import("./huggingface"),
   transformers: () => import("./transformers"),
+  webLLM: () => import("./webLLM")
 };
 
-const embeddingsProvider = {
+export const embeddingsProvider = {
   provider: "transformers",
 };
 
-const llmProvider = {
-  provider: "transformers",
+export const llmProvider = {
+  provider: "webLLM",
 };
 
 const { getEmbeddings } = await aiProviders
@@ -29,7 +30,6 @@ const { getLLM } = await aiProviders
 
 export function getChatCompletion(
   messages: BaseLanguageModelInput,
-  options?: any,
 ) {
   return getLLM().invoke(messages);
 }
