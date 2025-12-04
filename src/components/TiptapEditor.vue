@@ -2,8 +2,8 @@
 const props = defineProps<{
   modelValue?: Object
   autocompletion: (text: string) => Promise<any>
-  shorten: (text: string) => Promise<AIMessageChunk>
-  alternative: (text: string) => Promise<AIMessageChunk>
+  shorten: (text: string) => Promise<string>
+  alternative: (text: string) => Promise<string>
 }>()
 
 const emits = defineEmits(['update:modelValue'])
@@ -19,7 +19,6 @@ import Headline from '../plugins/Headline'
 import Limit from '../plugins/Limit'
 import Completion from '../plugins/Completion'
 import Autocompletion from '../plugins/Autocompletion'
-import type { AIMessageChunk } from '@langchain/core/messages'
 
 const Article = Document.extend({
   content: 'headline lead (paragraph|heading)*'
@@ -146,7 +145,7 @@ const wordCountMax = computed(() => {
 @reference "../assets/main.css";
 
 .ProseMirror {
-  @apply p-3 whitespace-break-spaces break-words break-all mt-10 ml-5;
+  @apply p-3 whitespace-break-spaces wrap-break-word break-all mt-10 ml-5;
 }
 
 .ProseMirror:focus {

@@ -61,6 +61,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       availableCompletions: (() => Promise<Completion>)[],
       currentCompletionIndex: number
     ) => {
+      if (availableCompletions[currentCompletionIndex] == null) return
       const result = await availableCompletions[currentCompletionIndex]()
       const { answer, context } = result
       const decoration = Decoration.node(pos, pos + node.nodeSize, {

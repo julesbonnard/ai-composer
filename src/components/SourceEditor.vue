@@ -94,7 +94,7 @@ async function save() {
 
 <template>
   <div class="shadow-sm overflow-y-auto">
-    <div class="sticky top-0 pr-2 z-[101] join float-right">
+    <div class="sticky top-0 pr-2 z-101 join float-right">
       <button @click="save" class="btn btn-neutral btn-xs join-item">Save</button>
       <button
         v-if="route.name === 'source'"

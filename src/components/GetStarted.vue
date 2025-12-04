@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 
 <template>
   <div class="bg-white shadow-sm overflow-y-auto">
-    <div class="sticky top-0 right-2 z-[101] float-right">
+    <div class="sticky top-0 right-2 z-101 float-right">
       <RouterLink :to="{ name: 'home' }" class="btn btn-neutral btn-xs"> Close </RouterLink>
     </div>
 
