@@ -3,7 +3,7 @@ import TiptapEditor from '../components/TiptapEditor.vue'
 import SourcesUploader from '../components/SourcesUploader.vue'
 import SourcesList from '../components/SourcesList.vue'
 import SigninHF from '../components/SigninHF.vue'
-import { hfToken } from '../plugins/HuggingFace'
+import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
@@ -20,8 +20,8 @@ const lang = 'fr'
 
 function generateCompletion(text: string, similarItem: DocumentInterface) {
   return async () => {
-    let completion = await getChatCompletion(prompts[lang].autocompletion(text, similarItem))
-    console.log(completion)
+    const prompt = prompts[lang].autocompletion(text, similarItem)
+    const completion = await getChatCompletion(prompt)
 
     if (!completion) {
       throw 'No completion found'
@@ -32,7 +32,7 @@ function generateCompletion(text: string, similarItem: DocumentInterface) {
     }
 
     return {
-      answer: completion.content,
+      answer: completion.content.toString(),
       context: similarItem
     }
   }
@@ -40,7 +40,6 @@ function generateCompletion(text: string, similarItem: DocumentInterface) {
 
 const autocompletion = async (text: string) => {
   const semanticSearch = await similaritySearch(text)
-  console.log(semanticSearch)
 
   if (!semanticSearch || semanticSearch.length === 0) {
     throw 'No similar items found'
@@ -56,7 +55,7 @@ const shorten = async (text: string) => {
     throw 'No completion found'
   }
 
-  return result
+  return result.content.toString()
 }
 
 const alternative = async (text: string) => {
@@ -66,7 +65,7 @@ const alternative = async (text: string) => {
     throw 'No completion found'
   }
 
-  return result
+  return result.content.toString()
 }
 
 async function clipboard() {
@@ -86,7 +85,7 @@ async function reset() {
     <!-- <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
       Get started
     </RouterLink> -->
-    <SigninHF v-if="!hfToken" class="mx-auto btn btn-ghost" />
+    <SigninHF v-if="shouldUseHfOAuth" class="mx-auto btn btn-ghost" />
     <div v-if="hfToken">
       <div class="avatar">
         <div class="w-24 rounded">
