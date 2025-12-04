@@ -11,7 +11,7 @@ const aiProviders = {
 };
 
 export const embeddingsProvider = {
-  provider: "transformers",
+  provider: "webLLM",
 };
 
 export const llmProvider = {

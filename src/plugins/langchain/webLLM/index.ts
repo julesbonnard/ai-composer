@@ -41,11 +41,17 @@ export function getLLM() {
 
 export function getEmbeddings() {
   return {
-    embedDocuments (): Promise<number[][]> {
-      throw new Error("Embeddings not supported for WebLLM");
+    embedDocuments (content: string[]): Promise<number[][]> {
+      return runWorker(worker, {
+        task: 'embed',
+        content
+      })
     },
-    embedQuery (): Promise<number[]> {
-      throw new Error("Embeddings not supported for WebLLM");
+    embedQuery (content: string): Promise<number[]> {
+      return runWorker(worker, {
+        task: 'embed',
+        content
+      })
     }
   }
 }
