@@ -33,7 +33,7 @@ async function handleGenerate(event: MessageEvent): Promise<ChatMessage> {
     chatModelInitialized = true;
   }
 
-  const messages = event.data.messages as BaseLanguageModelInput;
+  const messages = event.data.messages;
 
   const response = await chatModel.invoke(messages);
 
@@ -50,7 +50,7 @@ async function handleEmbed(event: MessageEvent): Promise<number[][]> {
     });
     embedModelInitialized = true;
   }
-  
+
   const content: string[] = event.data.content;
   return embedModel.embedDocuments(content);
 }
