@@ -2,7 +2,7 @@ import { OpenAIEmbeddings, ChatOpenAI } from '@langchain/openai'
 
 export function getEmbeddings(model: string = 'text-embedding-3-large') {
   return new OpenAIEmbeddings({
-    apiKey: import.meta.env.VITE_OPENAI_APIKEY,
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     model
   })
 }
@@ -16,7 +16,7 @@ export function getLLM(model: string = 'gpt-4', options?: any) {
     cache: true
   }
   return new ChatOpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_APIKEY,
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     model,
     ...defaultOptions,
     ...options
