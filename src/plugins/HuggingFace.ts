@@ -29,22 +29,3 @@ export async function handleHfLogin() {
 }
 
 export const inferenceClient = computed(() => new InferenceClient(hfToken.value?.accessToken))
-
-// async function testInference () {
-//   const client = new HfInference(oauthResult.value.accessToken)
-//   const chatCompletion = await client.chatCompletion({
-//       provider: "together",
-//       model: "mistralai/Mistral-Small-24B-Instruct-2501",
-//       messages: [
-//           {
-//               role: "user",
-//               content: "Qu'est-ce qui est jaune et qui attend ?",
-//           },
-//       ],
-//   });
-//   testInferenceResult.value = chatCompletion.choices[0].message.content as string
-// }
-
-// if (oauthResult.value) {
-//   // testInference()
-// }

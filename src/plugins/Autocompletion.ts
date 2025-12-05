@@ -21,11 +21,6 @@ export interface AutocompletionOptions {
   debounceTimer: number
 }
 
-type Completion = {
-  answer: string
-  context: DocumentInterface
-}
-
 export interface AutocompletionStorage {
   debouncedGetCompletions: any
   suggestCompletion: any

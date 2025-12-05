@@ -7,8 +7,7 @@ import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { getChatCompletion, similaritySearch } from '../plugins/langchain'
-import prompts from '../prompts/index'
+import { searchContext, autocompleteTextFromContext, shortenText, alternativeText } from '../plugins/langchain'
 import type { DocumentInterface } from '@langchain/core/documents'
 
 const editorStore = useEditorStore()
@@ -16,55 +15,27 @@ const { article } = storeToRefs(editorStore)
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
-const lang = 'fr'
-
-function generateCompletion(text: string, similarItem: DocumentInterface) {
-  return async () => {
-    const prompt = prompts[lang].autocompletion(text, similarItem)
-    const completion = await getChatCompletion(prompt)
-
-    if (!completion) {
-      throw 'No completion found'
-    }
-
-    if (typeof completion.content === 'string' && completion.content.startsWith(text)) {
-      completion.content = completion.content.slice(text.length)
-    }
-
-    return {
-      answer: completion.content.toString(),
-      context: similarItem
-    }
-  }
+function generateCompletion(text: string, doc: DocumentInterface) {
+  return () => autocompleteTextFromContext(text, doc)
 }
 
 const autocompletion = async (text: string) => {
-  const semanticSearch = await similaritySearch(text)
+  const context = await searchContext(text)
 
-  if (!semanticSearch || semanticSearch.length === 0) {
-    throw 'No similar items found'
+  if (!context || context.length === 0) {
+    throw 'No context found'
   }
 
-  return semanticSearch.map((semanticResult) => generateCompletion(text, semanticResult))
+  return context.map((doc) => generateCompletion(text, doc))
 }
 
 const shorten = async (text: string) => {
-  const result = await getChatCompletion(prompts[lang].shorten(text))
-
-  if (!result) {
-    throw 'No completion found'
-  }
-
+  const result = await shortenText(text)
   return result.content.toString()
 }
 
 const alternative = async (text: string) => {
-  const result = await getChatCompletion(prompts[lang].alternative(text))
-
-  if (!result) {
-    throw 'No completion found'
-  }
-
+  const result = await alternativeText(text)
   return result.content.toString()
 }
 
