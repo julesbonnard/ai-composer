@@ -3,10 +3,6 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
 
-type DocumentsWithVectors = Document & {
-  vectors: number[];
-};
-
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
@@ -30,29 +26,15 @@ export function getVectorStore(embeddings: EmbeddingsInterface) {
   return {
     addDocuments: async (
       documents: Document[],
-    ): Promise<DocumentsWithVectors[]> => {
+    ): Promise<[vectors: number[][], documents: Document[]]> => {
       const chunks = await splitDocuments(documents);
       const vectors = await embeddings.embedDocuments(
         chunks.map((chunk) => chunk.pageContent),
       );
       await vectorStore.addVectors(vectors, chunks);
-      return chunks.map((chunk, i) => {
-        const vector = vectors[i];
-        if (!vector) {
-          throw new Error("Vector not found");
-        }
-        return {
-          ...chunk,
-          vectors: vector,
-        };
-      });
+      return [vectors, chunks];
     },
-    addVectors: (documentsWithVectors: DocumentsWithVectors[]) => {
-      return vectorStore.addVectors(
-        documentsWithVectors.map((d) => d.vectors),
-        documentsWithVectors,
-      );
-    },
-    similaritySearch: (query: string) => mmrRetriever.invoke(query),
+    addVectors: vectorStore.addVectors,
+    similaritySearch: (query: string) => mmrRetriever.invoke(query)
   };
 }

@@ -1,21 +1,28 @@
-import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import type { ChatMessage } from "@langchain/core/messages";
 import { getVectorStore } from "./vectorStore";
+import { formatDocumentsAsString } from "@langchain/classic/util/document";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough } from "@langchain/core/runnables";
+import { RunnableLambda } from "@langchain/core/runnables";
+import { Document } from "@langchain/core/documents";
 
 const aiProviders = {
   ollama: () => import("./ollama"),
   openai: () => import("./openai"),
   mistralai: () => import("./mistralai"),
   huggingface: () => import("./huggingface"),
+  google: () => import("./google"),
   transformers: () => import("./transformers"),
   webLLM: () => import("./webLLM")
 };
 
 export const embeddingsProvider = {
-  provider: "webLLM",
+  provider: "openai",
 };
 
 export const llmProvider = {
-  provider: "webLLM",
+  provider: "openai",
 };
 
 const { getEmbeddings } = await aiProviders
@@ -28,12 +35,94 @@ export const { addDocuments, similaritySearch } = getVectorStore(
 const { getLLM } = await aiProviders
   [llmProvider.provider as keyof typeof aiProviders]();
 
-export function getChatCompletion(
-  messages: BaseLanguageModelInput,
-) {
-  return getLLM().invoke(messages);
+export function searchContext(text: string) {
+  return RunnableLambda.from(async (input: string) => {
+    console.log("Retrieving context for question:", input);
+    return similaritySearch(input);
+  }).invoke(text);
 }
 
-// export function getChatCompletionStream(messages: BaseLanguageModelInput, options?: any) {
-//   return llm.stream(messages, options)
-// }
+export function autocompleteTextFromContext(text: string, context: Document) {
+  const promptTemplate = PromptTemplate.fromTemplate(`You are an artificial intelligence designed to assist a journalist in writing an article by completing their sentences.
+Instructions:
+- Give a short answer: one sentence, neutral tone.
+- If the excerpt does not allow completing the sentence, say nothing.
+- If the answer includes a number, specify the units and, if needed, the source.
+- Do not rewrite the exact words of the excerpt unless it is a quotation in quotation marks; in that case, keep the quotation marks and state the speaker. For example: “[a quote],” according to [a company], or “[a quote],” said [a spokesperson].
+- If the excerpt is in a different language, respond in the language of the current article.
+- The answer must be concise and factual, even if it is a single word.
+- Use only the information provided in the context.
+- Write in the same language as the input.
+Context: {context}
+Text: {text}`);
+
+  return RunnableSequence.from([
+    RunnablePassthrough.assign({
+      context: RunnableLambda.from(() => formatDocumentsAsString([context]))
+    }),
+    promptTemplate,
+    getLLM() as any,
+    RunnableLambda.from((output: ChatMessage) => {
+      let content = output.content.toString()
+      if (content.startsWith(text)) {
+        content = content.slice(text.length)
+      }
+      return {
+        answer: content,
+        context
+      } as Completion;
+    })
+  ]).invoke({
+    text, context
+  });
+}
+
+export function shortenText(text: string) {
+  const promptTemplate = PromptTemplate.fromTemplate(`You are an AI editing assistant for a journalist. Your task is to propose a shortened version of the selected text while preserving its meaning and accuracy.
+Rules:
+Reduce the text to the minimum necessary while keeping all essential information.
+Do not remove important factual elements.
+If the text contains numbers, units, or quotations, retain them exactly.
+Do not rephrase unless it provides meaningful concision without altering the meaning.
+Do not change the language of the text.
+Provide no explanation — only the shortened version.
+
+Example:
+Selected text: “The president announced this morning a series of new measures to fight inflation.”
+Response: “The president announced new measures to fight inflation.”
+
+Text: {text}`);
+
+  return RunnableSequence.from([
+    {
+      text: new RunnablePassthrough()
+    },
+    promptTemplate,
+    getLLM() as any
+  ]).invoke(text);
+}
+
+export function alternativeText(text: string) {
+  const promptTemplate = PromptTemplate.fromTemplate(`You are an AI editing assistant for a journalist. Your task is to suggest a synonym when a single word is selected, or a rephrased alternative when a group of words is selected, while preserving the original meaning and intention.
+Rules:
+If a single word is selected, propose a precise, natural synonym in the same register.
+If a group of words is selected, rephrase it smoothly without changing the meaning.
+Provide only one suggestion.
+Do not oversimplify if it alters the intention or tone.
+Do not change the language of the text.
+Reply only with the alternative proposal, without explanation.
+
+Examples:
+Selected word: important → Response: essential
+Selected phrase: a controversial decision → Response: a contested measure
+
+Text: {text}`);
+
+  return RunnableSequence.from([
+    {
+      text: new RunnablePassthrough()
+    },
+    promptTemplate,
+    getLLM() as any
+  ]).invoke(text);
+}
