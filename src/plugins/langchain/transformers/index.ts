@@ -2,8 +2,6 @@ import type { BaseLanguageModelInput } from '@langchain/core/language_models/bas
 import workerUrk from './transformers.worker?url';
 import type { ChatMessage } from '@langchain/core/messages';
 
-type Dtype = "auto" | "fp32" | "fp16" | "q8" | "int8" | "uint8" | "q4" | "bnb4" | "q4f16" | Record<string, "auto" | "fp32" | "fp16" | "q8" | "int8" | "uint8" | "q4" | "bnb4" | "q4f16"> | undefined
-
 const worker = new Worker(new URL(workerUrk, import.meta.url), {
   type: 'module',
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   modelValue?: Object
-  autocompletion: (text: string) => Promise<any>
+  autocompletion: (text: string, fullText: string) => Promise<any>
   shorten: (text: string) => Promise<string>
   alternative: (text: string) => Promise<string>
 }>()

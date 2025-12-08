@@ -7,7 +7,7 @@ import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { searchContext, autocompleteTextFromContext, shortenText, alternativeText } from '../plugins/langchain'
+import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/langchain'
 import type { DocumentInterface } from '@langchain/core/documents'
 
 const editorStore = useEditorStore()
@@ -16,12 +16,11 @@ const { article } = storeToRefs(editorStore)
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
 function generateCompletion(text: string, doc: DocumentInterface) {
-  return () => autocompleteTextFromContext(text, doc)
+  return () => autocompleteText(text, doc)
 }
 
-const autocompletion = async (text: string) => {
-  const context = await searchContext(text)
-
+const autocompletion = async (text: string, fullText: string) => {
+  const context = await searchContext(fullText)
   if (!context || context.length === 0) {
     throw 'No context found'
   }

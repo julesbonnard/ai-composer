@@ -1,4 +1,3 @@
-import type { ChatMessage } from "@langchain/core/messages";
 import { getVectorStore } from "./vectorStore";
 import { formatDocumentsAsString } from "@langchain/classic/util/document";
 import { RunnableSequence } from "@langchain/core/runnables";
@@ -6,6 +5,9 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnablePassthrough } from "@langchain/core/runnables";
 import { RunnableLambda } from "@langchain/core/runnables";
 import { Document } from "@langchain/core/documents";
+import { fetchNewsContext } from "./asknews";
+import { RunnableParallel } from "@langchain/core/runnables";
+import { type SearchResponse } from '@emergentmethods/asknews-typescript-sdk'
 
 const aiProviders = {
   ollama: () => import("./ollama"),
@@ -14,7 +16,8 @@ const aiProviders = {
   huggingface: () => import("./huggingface"),
   google: () => import("./google"),
   transformers: () => import("./transformers"),
-  webLLM: () => import("./webLLM")
+  webLLM: () => import("./webLLM"),
+  taskgenai: () => import("./taskgenai")
 };
 
 export const embeddingsProvider = {
@@ -35,14 +38,29 @@ export const { addDocuments, similaritySearch } = getVectorStore(
 const { getLLM } = await aiProviders
   [llmProvider.provider as keyof typeof aiProviders]();
 
-export function searchContext(text: string) {
-  return RunnableLambda.from(async (input: string) => {
-    console.log("Retrieving context for question:", input);
-    return similaritySearch(input);
-  }).invoke(text);
+function searchContextFromDocuments(text: string) {
+  return similaritySearch(text);
 }
 
-export function autocompleteTextFromContext(text: string, context: Document) {
+async function searchContextFromAskNews(text: string) {
+  const newsContext = await fetchNewsContext(text) as SearchResponse;
+  return newsContext.asDicts?.map((item => new Document({
+    pageContent: item.keyPoints?.join('\n') || item.summary,
+    metadata: { title: `${item.domainUrl} - ${item.articleUrl}` }
+  }))) || [];
+}
+
+export async function searchContext(text: string) {
+  const results = await RunnableParallel.from({
+    documents: RunnableLambda.from(searchContextFromDocuments),
+    news: RunnableLambda.from(searchContextFromAskNews),
+  }).invoke(text)
+  
+  console.log('searchContext results', results);
+  return [...results.documents, ...results.news];
+}
+
+export function autocompleteText(text: string, document: Document) {
   const promptTemplate = PromptTemplate.fromTemplate(`You are an artificial intelligence designed to assist a journalist in writing an article by completing their sentences.
 Instructions:
 - Give a short answer: one sentence, neutral tone.
@@ -58,22 +76,23 @@ Text: {text}`);
 
   return RunnableSequence.from([
     RunnablePassthrough.assign({
-      context: RunnableLambda.from(() => formatDocumentsAsString([context]))
+      context: RunnableLambda.from(() => formatDocumentsAsString([document]))
     }),
     promptTemplate,
     getLLM() as any,
-    RunnableLambda.from((output: ChatMessage) => {
-      let content = output.content.toString()
-      if (content.startsWith(text)) {
+    RunnableLambda.from(output => {
+      console.log('autocompleteText output', output);
+      let content = 'invoke' in output ? output.invoke.content.toString() : output.content.toString()
+      if (content.toLowerCase().startsWith(text.toLowerCase())) {
         content = content.slice(text.length)
       }
       return {
         answer: content,
-        context
+        context: document
       } as Completion;
     })
   ]).invoke({
-    text, context
+    text, document
   });
 }
 

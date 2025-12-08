@@ -1,4 +1,3 @@
-import type { DocumentInterface } from '@langchain/core/documents'
 import { Extension } from '@tiptap/core'
 import { Node } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
@@ -15,7 +14,7 @@ declare module '@tiptap/core' {
 }
 
 export interface AutocompletionOptions {
-  autocompletion: (text: string) => Promise<(() => Promise<Completion>)[]>
+  autocompletion: (text: string, fullText: string) => Promise<(() => Promise<Completion>)[]>
   shorten: (text: string) => Promise<any>
   alternative: (text: string) => Promise<any>
   debounceTimer: number
@@ -75,7 +74,8 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
     }
 
     const getCompletionsWrapper = async (view: EditorView, node: Node, pos: number) => {
-      const availableCompletions = await this.options.autocompletion(node.textContent)
+      const fullText = view.state.doc.textContent
+      const availableCompletions = await this.options.autocompletion(node.textContent, fullText)
       if (availableCompletions.length == 0) {
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
       }
