@@ -30,3 +30,5 @@ coverage
 .npmrc
 
 .env
+public/gemma2-2b-it-gpu-int8.bin
+public/gemma3-1b-it-int4.task
