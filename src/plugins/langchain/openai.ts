@@ -1,8 +1,21 @@
 import { OpenAIEmbeddings, ChatOpenAI } from '@langchain/openai'
 
+function getApiKey(): string {
+  const storedKeys = localStorage.getItem('ai-composer-api-keys')
+  if (storedKeys) {
+    try {
+      const keys = JSON.parse(storedKeys)
+      if (keys.openai) return keys.openai
+    } catch (e) {
+      // Fallback to env if parsing fails
+    }
+  }
+  return import.meta.env.VITE_OPENAI_API_KEY
+}
+
 export function getEmbeddings(model: string = 'text-embedding-3-large') {
   return new OpenAIEmbeddings({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    apiKey: getApiKey(),
     model
   })
 }
@@ -16,7 +29,7 @@ export function getLLM(model: string = 'gpt-4', options?: any) {
     cache: true
   }
   return new ChatOpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    apiKey: getApiKey(),
     model,
     ...defaultOptions,
     ...options

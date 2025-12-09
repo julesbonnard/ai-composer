@@ -16,6 +16,11 @@ const router = createRouter({
           component: GetStarted
         },
         {
+          path: '/settings',
+          name: 'settings',
+          component: () => import('../components/SettingsComponent.vue')
+        },
+        {
           path: '/sources/:id',
           name: 'source',
           component: () => import('../components/SourceEditor.vue')

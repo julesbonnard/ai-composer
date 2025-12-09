@@ -145,7 +145,7 @@ const wordCountMax = computed(() => {
 @reference "../assets/main.css";
 
 .ProseMirror {
-  @apply p-3 whitespace-break-spaces wrap-break-word break-all mt-10 ml-5;
+  @apply p-3 whitespace-break-spaces wrap-break-word break-normal mt-10 ml-5;
 }
 
 .ProseMirror:focus {

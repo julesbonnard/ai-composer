@@ -15,7 +15,7 @@ const { sources } = storeToRefs(sourcesStore)
 </script>
 
 <template>
-  <ol class="max-w-full break-words">
+  <ol class="max-w-full wrap-break-word">
     <li
       v-for="(source, i) in sources"
       :key="i"

@@ -6,7 +6,7 @@ import { useRoute, RouterView } from 'vue-router'
 const route = useRoute()
 
 const gridColsClass = computed(() => {
-  const isGetStartedVisible = route.name === 'get-started'
+  const isGetStartedVisible = route.name === 'get-started' || route.name === 'settings'
   const isSourceEditorVisible = route.name === 'source' || route.name == 'new-source'
 
   return isGetStartedVisible || isSourceEditorVisible

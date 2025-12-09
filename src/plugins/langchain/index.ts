@@ -20,19 +20,29 @@ const aiProviders = {
   taskgenai: () => import("./taskgenai")
 };
 
-export const embeddingsProvider = {
-  provider: "openai",
-};
+// Fonction pour lire les sélections depuis localStorage
+function getStoredSelection(key: string, defaultProvider: string) {
+  const stored = localStorage.getItem(key)
+  if (stored) {
+    try {
+      const selection = JSON.parse(stored)
+      return selection
+    } catch (e) {
+      // Fallback to default if parsing fails
+    }
+  }
+  return { provider: defaultProvider, model: '' }
+}
 
-export const llmProvider = {
-  provider: "openai",
-};
+export const embeddingsProvider = getStoredSelection('ai-composer-embeddings-selection', 'openai');
+
+export const llmProvider = getStoredSelection('ai-composer-llm-selection', 'openai');
 
 const { getEmbeddings } = await aiProviders
   [embeddingsProvider.provider as keyof typeof aiProviders]();
 
 export const { addDocuments, similaritySearch } = getVectorStore(
-  getEmbeddings(),
+  getEmbeddings(embeddingsProvider.model || undefined),
 );
 
 const { getLLM } = await aiProviders
@@ -79,7 +89,7 @@ Text: {text}`);
       context: RunnableLambda.from(() => formatDocumentsAsString([document]))
     }),
     promptTemplate,
-    getLLM() as any,
+    getLLM(llmProvider.model || undefined) as any,
     RunnableLambda.from(output => {
       console.log('autocompleteText output', output);
       let content = 'invoke' in output ? output.invoke.content.toString() : output.content.toString()
@@ -117,7 +127,7 @@ Text: {text}`);
       text: new RunnablePassthrough()
     },
     promptTemplate,
-    getLLM() as any
+    getLLM(llmProvider.model || undefined) as any
   ]).invoke(text);
 }
 
@@ -142,6 +152,6 @@ Text: {text}`);
       text: new RunnablePassthrough()
     },
     promptTemplate,
-    getLLM() as any
+    getLLM(llmProvider.model || undefined) as any
   ]).invoke(text);
 }

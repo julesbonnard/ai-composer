@@ -7,11 +7,13 @@ import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/langchain'
 import type { DocumentInterface } from '@langchain/core/documents'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
+const router = useRouter()
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
@@ -51,10 +53,13 @@ async function reset() {
 </script>
 
 <template>
-  <aside class="shadow-md flex flex-col min-w-[300px]">
-    <!-- <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
+  <aside class="shadow-md flex flex-col min-w-[300px] relative">    
+    <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
       Get started
-    </RouterLink> -->
+    </RouterLink>
+    <RouterLink id="get-started" class="btn btn-lg btn-secondary" :to="{ name: 'settings' }">
+      Settings
+    </RouterLink>
     <SigninHF v-if="shouldUseHfOAuth" class="mx-auto btn btn-ghost" />
     <div v-if="hfToken">
       <div class="avatar">
