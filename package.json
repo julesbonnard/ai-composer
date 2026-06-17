@@ -12,11 +12,6 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.85",
-    "@ai-sdk/google": "^3.0.83",
-    "@ai-sdk/mistral": "^3.0.40",
-    "@ai-sdk/openai": "^3.0.72",
-    "@ai-sdk/vue": "^3.0.207",
     "@emergentmethods/asknews-typescript-sdk": "^0.4.19",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/hub": "^2.13.1",

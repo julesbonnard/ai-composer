@@ -1,4 +1,6 @@
-import type { ProviderKey } from './factory'
+import modelsConfig from '../../config/models'
+
+export type ProviderKey = keyof typeof modelsConfig
 
 export interface Selection {
   provider: ProviderKey
@@ -6,8 +8,7 @@ export interface Selection {
 }
 
 // Lit la sélection persistée par le store settings (useStorage). Lue une fois au
-// chargement du module : changer de provider/modèle nécessite un rechargement,
-// comme dans l'implémentation LangChain précédente.
+// chargement du module : changer de provider/modèle nécessite un rechargement.
 function getStoredSelection(key: string, fallback: Selection): Selection {
   const stored = localStorage.getItem(key)
   if (stored) {
@@ -21,11 +22,11 @@ function getStoredSelection(key: string, fallback: Selection): Selection {
 }
 
 export const llmSelection = getStoredSelection('ai-composer-llm-selection', {
-  provider: 'openai',
-  model: 'gpt-4'
+  provider: 'gateway',
+  model: 'openai/gpt-5.4'
 })
 
 export const embeddingsSelection = getStoredSelection('ai-composer-embeddings-selection', {
-  provider: 'openai',
-  model: 'text-embedding-3-large'
+  provider: 'transformers',
+  model: 'Xenova/multilingual-e5-small'
 })

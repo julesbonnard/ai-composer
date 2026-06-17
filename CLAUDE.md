@@ -58,19 +58,31 @@ volontairement, pas en masse.
    le lien vers la source (extension `Completion`).
 5. **shorten** / **alternative** agissent sur la sélection courante (bubble menu).
 
-### Couche LLM/RAG — `src/plugins/ai/` (Vercel AI SDK) ⭐ ACTIF
-Migré de LangChain.js vers le **Vercel AI SDK v6** (juin 2026, cf. ROADMAP phase A).
-- `index.ts` : API publique consommée par `HomeView.vue` et `stores/sources.ts` —
+### Couche LLM/RAG — `src/plugins/ai/` ⭐ ACTIF
+Migré de LangChain.js (juin 2026). **Abstraction unique local ↔ distant** : tout passe par
+`engine.ts`, qui choisit le moteur selon le flag `local` du provider sélectionné
+(`config/models.ts`). Basculer local↔distant = changer de provider dans les réglages.
+- `index.ts` : API publique (consommée par `HomeView.vue` / `stores/sources.ts`) —
   `searchContext`, `autocompleteText`, `shortenText`, `alternativeText`, `addDocuments`,
-  `similaritySearch`, type `Doc`. **Pas de top-level await** (contrairement à l'ancien).
-- `completion.ts` : `generateText` (SDK) + prompts en **anglais**.
-- `factory.ts` : `getLanguageModel` / `getEmbeddingModel` depuis `(provider, model)`.
-  Providers cloud : `openai`, `mistralai`, `google`, `anthropic` (`@ai-sdk/*`). Clé d'API
-  lue dans `localStorage` (`ai-composer-api-keys`) avec repli sur `import.meta.env.VITE_*`.
+  `similaritySearch`, type `Doc`. **Pas de top-level await**.
+- `engine.ts` : dispatcher. `complete(task, text, context)` → moteur local ou distant ;
+  `embed(texts)` → **toujours local** (le Gateway ne fait pas d'embeddings).
+- `prompts.ts` : `buildPrompt(task, …)` — **module pur partagé** entre `api/llm.ts`
+  (serveur) et le worker local → prompts non dupliqués.
+- `engines/remote.ts` : `fetch('/api/llm')`. Le LLM distant tourne **côté serveur** via le
+  **Vercel AI Gateway** (slugs `provider/model`), auth OIDC (`VERCEL_OIDC_TOKEN`) jamais
+  exposée. Voir `api/llm.ts`.
+- `engines/local.ts` + `local.worker.ts` : inférence **100% navigateur** (transformers.js,
+  WebGPU/WASM), génération + embeddings. Les sources ne quittent jamais le poste.
 - `selection.ts` : lit `ai-composer-llm-selection` / `ai-composer-embeddings-selection`
   (une fois au chargement → changer de modèle nécessite un reload).
 - `vectorStore.ts` : vector store **en mémoire** maison (cosinus + découpage 1000/200 +
-  dédoublonnage par source), **sans LangChain**. Non persisté (cf. ROADMAP phase D).
+  dédoublonnage par source), embeddings via `engine.embed`. Non persisté (ROADMAP phase D).
+- `api/llm.ts` : fonction serverless Vercel → `generateText` via Gateway. Prompts construits
+  côté serveur (endpoint à tâches figées, pas un proxy LLM ouvert).
+
+⚠️ **Tester** : le distant (Gateway) nécessite les fonctions `/api/*` → lancer **`vercel dev`**
+(pas `pnpm dev`) ou déployer. Le local tourne sous `pnpm dev` (tout client-side).
 
 ### Couche LLM legacy — `src/plugins/langchain/` ⚠️ ORPHELIN
 Plus aucun import actif (remplacé par `ai/`). **Conservé uniquement** pour le code des
@@ -113,7 +125,8 @@ depuis l'app.
 Table déclarative `{ provider: { local, llm[], embeddings[], auth } }` où `auth` ∈
 `false | 'apiKey' | 'oauthToken' | 'clientCredentials'`. Pilote l'UI de `ModelSelector`
 et la logique d'authentification de `settings.ts`. **Garder cette table synchronisée**
-avec les providers réellement activés dans `ai/factory.ts`.
+avec les moteurs réellement câblés dans `ai/engine.ts`. `local: true` = navigateur,
+`local: false` = Gateway (serveur).
 
 ## Conventions
 
@@ -126,11 +139,14 @@ avec les providers réellement activés dans `ai/factory.ts`.
 
 ## Pièges connus / dette
 
-- Providers cloud actifs : `openai`, `mistralai`, `google`, `anthropic` (via `ai/factory.ts`).
-  Les modèles **locaux** ne sont pas encore migrés (code dans `langchain/`, cf. ROADMAP D).
-- Appels LLM faits **depuis le navigateur** (BYO-key en `localStorage`). Anthropic nécessite
-  l'en-tête `anthropic-dangerous-direct-browser-access` ; OpenAI peut poser des soucis CORS.
-  À déplacer derrière un proxy/Gateway (ROADMAP A).
+- Distant = **Vercel AI Gateway côté serveur** (`api/llm.ts`), pas de clé client. Local =
+  transformers.js navigateur. Les `@ai-sdk/*` providers directs ont été retirés.
+- `/api/llm` a des prompts figés (pas un proxy ouvert) mais reste sans auth : **ajouter
+  rate-limiting / budgets AI Gateway** avant un usage public (ROADMAP E).
+- Modèles locaux : worker câblé, mais **génération non validée en runtime** (téléchargement
+  modèle + WebGPU) — à tester. Pas encore d'UI de gestion/téléchargement des modèles.
+- `langchain/` (orphelin) garde encore `webLLM/` et `taskgenai` non migrés ; les `@langchain/*`
+  restent tant que ces workers ne sont pas repris.
 - Rewrites SPA + headers CORS `/api/*` dans **`vercel.json`** (plus dans `vite.config.ts`).
 - Ancien code mort supprimé (juin 2026) : `src/plugins/transformers.ts` (importait
   `@xenova/transformers`) et `src/plugins/VectorStorage/` (lib maison IndexedDB débranchée).

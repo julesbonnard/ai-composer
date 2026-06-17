@@ -42,14 +42,14 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const llmSelection = useStorage<ModelSelection>(
     'ai-composer-llm-selection',
-    { provider: 'openai', model: 'gpt-4' },
+    { provider: 'gateway', model: 'openai/gpt-5.4' },
     localStorage,
     { serializer: StorageSerializers.object }
   )
 
   const embeddingsSelection = useStorage<ModelSelection>(
     'ai-composer-embeddings-selection',
-    { provider: 'openai', model: 'text-embedding-3-large' },
+    { provider: 'transformers', model: 'Xenova/multilingual-e5-small' },
     localStorage,
     { serializer: StorageSerializers.object }
   )

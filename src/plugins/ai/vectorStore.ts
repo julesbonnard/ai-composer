@@ -1,6 +1,4 @@
-import { embed, embedMany } from 'ai'
-import { getEmbeddingModel } from './factory'
-import { embeddingsSelection } from './selection'
+import { embed } from './engine'
 
 // Document léger, structurellement compatible avec l'ancien Document LangChain
 // (pageContent + metadata + id) consommé par Autocompletion.ts.
@@ -17,10 +15,6 @@ interface StoredChunk {
 
 // Vector store en mémoire (non persisté). Cf. ROADMAP phase D pour la persistance.
 const chunks: StoredChunk[] = []
-
-function embeddingModel() {
-  return getEmbeddingModel(embeddingsSelection.provider, embeddingsSelection.model)
-}
 
 // Découpage récursif simple (équivalent RecursiveCharacterTextSplitter : 1000/200).
 function splitText(text: string, size = 1000, overlap = 200): string[] {
@@ -56,10 +50,7 @@ export async function addDocuments(docs: Doc[]): Promise<void> {
   )
   if (pieces.length === 0) return
 
-  const { embeddings } = await embedMany({
-    model: embeddingModel(),
-    values: pieces.map((p) => p.content)
-  })
+  const embeddings = await embed(pieces.map((p) => p.content))
 
   pieces.forEach((piece, i) => {
     chunks.push({
@@ -79,10 +70,7 @@ export async function addDocuments(docs: Doc[]): Promise<void> {
 export async function similaritySearch(query: string, k = 4): Promise<Doc[]> {
   if (chunks.length === 0) return []
 
-  const { embedding } = await embed({
-    model: embeddingModel(),
-    value: query
-  })
+  const [embedding] = await embed([query])
 
   const scored = chunks
     .map((chunk) => ({ doc: chunk.doc, score: cosineSimilarity(embedding, chunk.vector) }))

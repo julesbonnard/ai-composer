@@ -8,7 +8,20 @@ et faire de l'AFP une source de contexte de première classe.
 
 ---
 
-## Phase A — Migration LangChain.js → Vercel AI SDK v6  ⭐ priorité
+## ✅ Fait (juin 2026)
+
+- Migration LangChain → Vercel AI SDK v6.
+- **Abstraction unique local ↔ distant** (`ai/engine.ts`) : bascule sur le flag `local` du
+  provider, prompts partagés (`ai/prompts.ts`) entre serveur et worker.
+- **Distant via Vercel AI Gateway côté serveur** (`api/llm.ts`, slugs `provider/model`,
+  auth OIDC) — best practice « app qui dépend d'un Gateway », aucune clé côté client.
+- **Embeddings locaux** (transformers.js, le Gateway ne fait pas d'embeddings) + génération
+  locale câblée via le même worker.
+
+Reste : valider la génération locale en runtime (téléchargement modèle, WebGPU), UI de
+gestion des modèles locaux, persistance, streaming, rate-limiting Gateway.
+
+## Phase A — Migration LangChain.js → Vercel AI SDK v6  ✅ (socle fait)
 
 **Pourquoi.** `@langchain/community` est déprécié en amont ; les chunks LangChain pèsent
 ~1,7 Mo (mistralai 1 Mo, openai 198 Ko, prompt_values 471 Ko) ; et `afpnews-deck` tourne
