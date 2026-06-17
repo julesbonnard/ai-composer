@@ -20,6 +20,7 @@ import Headline from '../plugins/Headline'
 import Limit from '../plugins/Limit'
 import Completion from '../plugins/Completion'
 import Autocompletion from '../plugins/Autocompletion'
+import AiActivityBadge from './AiActivityBadge.vue'
 
 const Article = Document.extend({
   content: 'headline lead (paragraph|heading)*'
@@ -208,6 +209,10 @@ function reviewCompletion() {
   </bubble-menu>
 
   <editor-content :editor="editor" spellcheck="true" class="article-editor" />
+
+  <!-- Retour visuel discret de l'usage IA (moteur, modèle, tokens) -->
+  <ai-activity-badge />
+
 </template>
 
 <style>

@@ -10,6 +10,7 @@ import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
 import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/ai'
 import type { Doc } from '../plugins/ai'
+import { toastInfo } from '../composables/useToasts'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
@@ -23,7 +24,8 @@ function generateCompletion(text: string, doc: Doc) {
 const autocompletion = async (text: string, fullText: string) => {
   const context = await searchContext(fullText)
   if (!context || context.length === 0) {
-    throw 'No context found'
+    toastInfo('Ajoutez des sources pour obtenir des complétions liées au contexte.', 'Aucune source')
+    return []
   }
 
   return context.map((doc) => generateCompletion(text, doc))

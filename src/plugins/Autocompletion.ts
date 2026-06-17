@@ -56,7 +56,14 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       currentCompletionIndex: number
     ) => {
       if (availableCompletions[currentCompletionIndex] == null) return
-      const result = await availableCompletions[currentCompletionIndex]()
+      let result: Completion
+      try {
+        result = await availableCompletions[currentCompletionIndex]()
+      } catch {
+        // Erreur déjà signalée par un toast (engine.ts) ; on retire le placeholder « … ».
+        view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+        return
+      }
       const { answer, context } = result
       const decoration = Decoration.node(pos, pos + node.nodeSize, {
         class: 'autocompletion',
@@ -75,9 +82,17 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
     const getCompletionsWrapper = async (view: EditorView, node: Node, pos: number) => {
       const fullText = view.state.doc.textContent
-      const availableCompletions = await this.options.autocompletion(node.textContent, fullText)
+      let availableCompletions: (() => Promise<Completion>)[]
+      try {
+        availableCompletions = await this.options.autocompletion(node.textContent, fullText)
+      } catch {
+        // Erreur (embeddings/contexte) déjà signalée en amont ; on retire le placeholder.
+        view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+        return
+      }
       if (availableCompletions.length == 0) {
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+        return
       }
 
       suggestCompletion(view, node, pos, availableCompletions, 0)
@@ -101,13 +116,22 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
     }
 
     const shorten = async (view: EditorView, text: string, from: number, to: number) => {
-      const content = await this.options.shorten(text)
-      replaceWithCompletion(view, content, from, to, 'shorten')
+      try {
+        const content = await this.options.shorten(text)
+        replaceWithCompletion(view, content, from, to, 'shorten')
+      } catch {
+        // Toast déjà émis par engine.ts ; on retire le placeholder de remplacement.
+        view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+      }
     }
 
     const alternative = async (view: EditorView, text: string, from: number, to: number) => {
-      const content = await this.options.alternative(text)
-      replaceWithCompletion(view, content, from, to, 'alternative')
+      try {
+        const content = await this.options.alternative(text)
+        replaceWithCompletion(view, content, from, to, 'alternative')
+      } catch {
+        view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+      }
     }
 
     return {
