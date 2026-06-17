@@ -1,7 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { addDocuments } from '../plugins/langchain'
-import { Document } from '@langchain/core/documents'
+import { addDocuments } from '../plugins/ai'
 import { v4 as uuidv4 } from 'uuid'
 // import { VectorStorage, type IVSDocument } from "@/plugins/VectorStorage"
 
@@ -35,7 +34,11 @@ export const useSourcesStore = defineStore('sources', () => {
 
   async function generateVectors (source: Source) {
     await addDocuments([
-      new Document({ pageContent: source.content, metadata: { title: source.title, id: source.id } })
+      {
+        id: source.id,
+        pageContent: source.content,
+        metadata: { title: source.title, id: source.id }
+      }
     ])
     const storedSource = getSourceById(source.id)
     if (storedSource) storedSource.embeddings = true

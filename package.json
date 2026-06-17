@@ -12,6 +12,11 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.85",
+    "@ai-sdk/google": "^3.0.83",
+    "@ai-sdk/mistral": "^3.0.40",
+    "@ai-sdk/openai": "^3.0.72",
+    "@ai-sdk/vue": "^3.0.207",
     "@emergentmethods/asknews-typescript-sdk": "^0.4.19",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/hub": "^2.13.1",
@@ -43,6 +48,7 @@
     "@tiptap/vue-3": "^3.27.0",
     "@vercel/analytics": "^2.0.1",
     "@vueuse/core": "^14.3.0",
+    "ai": "^6.0.207",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -83,7 +89,6 @@
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
     "vite-plugin-node-polyfills": "^0.28.0",
-    "vite-plugin-vercel": "^11.1.1",
     "vue-tsc": "^3.3.5"
   }
 }

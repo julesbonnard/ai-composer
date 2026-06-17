@@ -37,12 +37,13 @@ volontairement, pas en masse.
 
 ## Stack
 
-- **Vue 3** (`<script setup>` + Composition API) + **Vue Router** + **Pinia**
-- **Vite 7** (+ `vite-plugin-vercel`) — déploiement **Vercel**
+- **Vue 3** (`<script setup>` + Composition API) + **Vue Router 5** + **Pinia**
+- **Vite 8** — déploiement **Vercel** (build SPA standard ; `api/` + rewrites natifs Vercel)
 - **Tailwind CSS 4** (via `@tailwindcss/vite`) + **daisyUI 5** + icônes Iconify
 - **Tiptap 3** (ProseMirror) pour l'éditeur
-- **LangChain** (`@langchain/*`) pour l'orchestration LLM + embeddings + RAG
-- **pnpm**, TypeScript, ESLint 9 (flat config via `@vue/eslint-config-*`), Prettier
+- **Vercel AI SDK v6** (`ai` + `@ai-sdk/*`) pour l'orchestration LLM + embeddings + RAG
+  (a remplacé LangChain.js ; `@langchain/*` ne subsiste que pour les workers locaux)
+- **pnpm**, TypeScript 6, ESLint 10 (flat config via `@vue/eslint-config-*`), Prettier
 
 ## Architecture
 
@@ -57,20 +58,26 @@ volontairement, pas en masse.
    le lien vers la source (extension `Completion`).
 5. **shorten** / **alternative** agissent sur la sélection courante (bubble menu).
 
-### Couche LLM/RAG — `src/plugins/langchain/`
-- `index.ts` : point d'entrée. Expose `searchContext`, `autocompleteText`, `shortenText`,
-  `alternativeText` (chaînes LangChain Runnable + prompts en **anglais**). Choisit le
-  provider LLM et embeddings via `localStorage` (clés `ai-composer-llm-selection` /
-  `ai-composer-embeddings-selection`), avec **top-level await** sur l'import dynamique du
-  provider. ⚠️ Les providers locaux (`transformers`, `webLLM`, `taskgenai`, `ollama`,
-  `huggingface`) sont **commentés** dans `aiProviders` — seuls `openai`, `mistralai`,
-  `google` sont actifs.
-- Un fichier par provider : `openai.ts`, `mistralai.ts`, `google.ts`, `ollama.ts`,
-  `huggingface.ts`, `taskgenai.ts` (MediaPipe), `transformers/` (Transformers.js en Web
-  Worker), `webLLM/` (WebLLM en Web Worker + embeddings maison). Chacun exporte
-  `getLLM(model?)` et `getEmbeddings(model?)`. La clé d'API est lue dans `localStorage`
-  (`ai-composer-api-keys`) avec repli sur `import.meta.env.VITE_*`.
-- `vectorStore.ts` : `MemoryVectorStore` **en mémoire** (non persisté) + retriever MMR.
+### Couche LLM/RAG — `src/plugins/ai/` (Vercel AI SDK) ⭐ ACTIF
+Migré de LangChain.js vers le **Vercel AI SDK v6** (juin 2026, cf. ROADMAP phase A).
+- `index.ts` : API publique consommée par `HomeView.vue` et `stores/sources.ts` —
+  `searchContext`, `autocompleteText`, `shortenText`, `alternativeText`, `addDocuments`,
+  `similaritySearch`, type `Doc`. **Pas de top-level await** (contrairement à l'ancien).
+- `completion.ts` : `generateText` (SDK) + prompts en **anglais**.
+- `factory.ts` : `getLanguageModel` / `getEmbeddingModel` depuis `(provider, model)`.
+  Providers cloud : `openai`, `mistralai`, `google`, `anthropic` (`@ai-sdk/*`). Clé d'API
+  lue dans `localStorage` (`ai-composer-api-keys`) avec repli sur `import.meta.env.VITE_*`.
+- `selection.ts` : lit `ai-composer-llm-selection` / `ai-composer-embeddings-selection`
+  (une fois au chargement → changer de modèle nécessite un reload).
+- `vectorStore.ts` : vector store **en mémoire** maison (cosinus + découpage 1000/200 +
+  dédoublonnage par source), **sans LangChain**. Non persisté (cf. ROADMAP phase D).
+
+### Couche LLM legacy — `src/plugins/langchain/` ⚠️ ORPHELIN
+Plus aucun import actif (remplacé par `ai/`). **Conservé uniquement** pour le code des
+modèles **locaux** à migrer : `transformers/` (Transformers.js Web Worker), `webLLM/`
+(WebLLM Web Worker), `taskgenai.ts` (MediaPipe). Les `@langchain/*` restent en dépendances
+tant que ces workers ne sont pas migrés (ROADMAP phase D). Ne pas réintroduire d'import
+depuis l'app.
 
 ### Sources de contexte externe — AskNews
 - `src/plugins/asknews.ts` : appelle `/api/asknews` (POST).
@@ -106,7 +113,7 @@ volontairement, pas en masse.
 Table déclarative `{ provider: { local, llm[], embeddings[], auth } }` où `auth` ∈
 `false | 'apiKey' | 'oauthToken' | 'clientCredentials'`. Pilote l'UI de `ModelSelector`
 et la logique d'authentification de `settings.ts`. **Garder cette table synchronisée**
-avec les providers réellement activés dans `langchain/index.ts`.
+avec les providers réellement activés dans `ai/factory.ts`.
 
 ## Conventions
 
@@ -119,17 +126,20 @@ avec les providers réellement activés dans `langchain/index.ts`.
 
 ## Pièges connus / dette
 
-- Providers locaux désactivés dans `langchain/index.ts` (imports commentés).
+- Providers cloud actifs : `openai`, `mistralai`, `google`, `anthropic` (via `ai/factory.ts`).
+  Les modèles **locaux** ne sont pas encore migrés (code dans `langchain/`, cf. ROADMAP D).
+- Appels LLM faits **depuis le navigateur** (BYO-key en `localStorage`). Anthropic nécessite
+  l'en-tête `anthropic-dangerous-direct-browser-access` ; OpenAI peut poser des soucis CORS.
+  À déplacer derrière un proxy/Gateway (ROADMAP A).
+- Rewrites SPA + headers CORS `/api/*` dans **`vercel.json`** (plus dans `vite.config.ts`).
 - Ancien code mort supprimé (juin 2026) : `src/plugins/transformers.ts` (importait
   `@xenova/transformers`) et `src/plugins/VectorStorage/` (lib maison IndexedDB débranchée).
-  L'implémentation active vit dans `langchain/transformers/` et `langchain/vectorStore.ts`.
-- Sources **non persistées** (vector store en mémoire ; IndexedDB commentée).
-- `langchain/index.ts` utilise un **top-level await** : un provider mal configuré casse le
-  chargement initial de l'app.
-- `@langchain/community` est marqué **deprecated** en amont.
+- Sources **non persistées** (vector store en mémoire `ai/vectorStore.ts`). Cf. ROADMAP D.
+- `@langchain/community` est marqué **deprecated** en amont (subsiste pour les workers locaux).
 - Routes `get-started` / `GetStarted.vue` présentes mais le lien est commenté dans `HomeView`.
-- CORS de `/api/*` codé en dur sur `https://ai-composer.vercel.app` (`vite.config.ts`).
-- Variables d'env : `VITE_*` (client) + `ASKNEWS_*`, `OAUTH_*` (serveur). Voir `.env`.
+- CORS de `/api/*` codé en dur sur `https://ai-composer.vercel.app` (`vercel.json`).
+- Variables d'env : `VITE_*` (client, dont `VITE_*_API_KEY`) + `ASKNEWS_*`, `OAUTH_*`,
+  et `APICORE_*` (à venir pour l'AFP, serveur). Voir `.env`.
 
 ## Branches
 

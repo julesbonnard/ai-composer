@@ -7,15 +7,15 @@ import SourcesList from '../components/SourcesList.vue'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/langchain'
-import type { DocumentInterface } from '@langchain/core/documents'
+import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/ai'
+import type { Doc } from '../plugins/ai'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
-function generateCompletion(text: string, doc: DocumentInterface) {
+function generateCompletion(text: string, doc: Doc) {
   return () => autocompleteText(text, doc)
 }
 
@@ -29,13 +29,11 @@ const autocompletion = async (text: string, fullText: string) => {
 }
 
 const shorten = async (text: string) => {
-  const result = await shortenText(text)
-  return result.content.toString()
+  return shortenText(text)
 }
 
 const alternative = async (text: string) => {
-  const result = await alternativeText(text)
-  return result.content.toString()
+  return alternativeText(text)
 }
 
 async function clipboard() {

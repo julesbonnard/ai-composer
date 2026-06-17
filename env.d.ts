@@ -3,7 +3,11 @@ declare module 'vue3-dropzone';
 
 type Completion = {
   answer: string
-  context: DocumentInterface
+  context: {
+    id?: string
+    pageContent: string
+    metadata: { title?: string; id?: string; name?: string }
+  }
 }
 
 type Dtype =
