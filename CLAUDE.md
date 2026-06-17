@@ -147,7 +147,11 @@ avec les moteurs réellement câblés dans `ai/engine.ts`. `local: true` = navig
   modèle + WebGPU) — à tester. Pas encore d'UI de gestion/téléchargement des modèles.
 - `langchain/` (orphelin) garde encore `webLLM/` et `taskgenai` non migrés ; les `@langchain/*`
   restent tant que ces workers ne sont pas repris.
-- Rewrites SPA + headers CORS `/api/*` dans **`vercel.json`** (plus dans `vite.config.ts`).
+- Rewrites SPA + headers CORS `/api/*` dans **`vercel.json`**. ⚠️ Sous `vercel dev`, la
+  réécriture s'applique **devant** Vite : elle doit exclure les chemins d'assets/modules
+  (`/@*`, extensions `.*\.`, `/assets/`) sinon Vite reçoit `index.html` pour une requête de
+  module → erreur `vite:import-analysis`. Pour du dev front pur, `pnpm dev` suffit ;
+  `vercel dev` est requis pour tester `/api/*` (Gateway).
 - Ancien code mort supprimé (juin 2026) : `src/plugins/transformers.ts` (importait
   `@xenova/transformers`) et `src/plugins/VectorStorage/` (lib maison IndexedDB débranchée).
 - Sources **non persistées** (vector store en mémoire `ai/vectorStore.ts`). Cf. ROADMAP D.
