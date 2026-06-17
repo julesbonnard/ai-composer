@@ -42,7 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const llmSelection = useStorage<ModelSelection>(
     'ai-composer-llm-selection',
-    { provider: 'gateway', model: 'openai/gpt-5.4' },
+    { provider: 'gateway', model: 'google/gemini-2.5-flash-lite' },
     localStorage,
     { serializer: StorageSerializers.object }
   )

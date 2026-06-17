@@ -23,7 +23,7 @@ function getStoredSelection(key: string, fallback: Selection): Selection {
 
 export const llmSelection = getStoredSelection('ai-composer-llm-selection', {
   provider: 'gateway',
-  model: 'openai/gpt-5.4'
+  model: 'google/gemini-2.5-flash-lite'
 })
 
 export const embeddingsSelection = getStoredSelection('ai-composer-embeddings-selection', {

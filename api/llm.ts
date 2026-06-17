@@ -12,7 +12,8 @@ import models from '../src/config/models'
 //  - garde de taille d'entrée (coût),
 //  - identifiant utilisateur dérivé de l'IP (hachée) + tags pour rate-limit/budget Gateway
 //    (à configurer dans le dashboard Vercel → AI Gateway).
-const DEFAULT_MODEL = 'openai/gpt-5.4'
+// Défaut bon marché, compatible free tier ($5/mois). Doit figurer dans gateway.llm.
+const DEFAULT_MODEL = 'google/gemini-2.5-flash-lite'
 const ALLOWED_MODELS = new Set(models.gateway?.llm ?? [DEFAULT_MODEL])
 
 const MAX_TEXT = 8_000

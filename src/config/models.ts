@@ -13,13 +13,17 @@ interface ProviderConfig {
 
 const models: Record<string, ProviderConfig> = {
   // --- Distant : Vercel AI Gateway (slugs provider/model, versions en points) ---
+  // Modèles bon marché adaptés au free tier ($5 de crédits/mois, prix coûtant).
+  // Tarifs indicatifs (input/output par M tokens) au moment de la sélection.
   gateway: {
     local: false,
     llm: [
-      'openai/gpt-5.4',
-      'anthropic/claude-sonnet-4.6',
-      'google/gemini-3-flash',
-      'mistral/mistral-large'
+      'google/gemini-2.5-flash-lite', // $0.10 / $0.40 — défaut : rapide, multilingue
+      'openai/gpt-5-nano', // $0.05 / $0.40 — le moins cher OpenAI
+      'openai/gpt-4.1-nano', // $0.10 / $0.40
+      'mistral/ministral-3b', // $0.10 / $0.10 — très bon marché, solide en français
+      'mistral/mistral-small', // $0.10 / $0.30 — français
+      'anthropic/claude-3-haiku' // $0.25 / $1.25 — option Anthropic économique
     ],
     embeddings: [], // le Gateway ne fait pas d'embeddings → embeddings toujours locaux
     auth: false
