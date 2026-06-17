@@ -1,71 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useStorage, StorageSerializers } from '@vueuse/core'
+import { computed, watch } from 'vue'
 import modelsConfig from '../config/models'
-import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
+import { useSettingsStore } from '../stores/settings'
+import type { ApiKeys } from '../stores/settings'
+import SigninHF from './SigninHF.vue'
 
-// Types pour la sélection
-interface ModelSelection {
-  provider: string
-  model: string
-}
-
-interface ApiKeys {
-  google: string
-  openai: string
-  mistralai: string
-}
-
-// Storage avec useStorage
-const llmSelection = useStorage<ModelSelection>(
-  'ai-composer-llm-selection',
-  { provider: 'openai', model: 'gpt-4' },
-  localStorage,
-  { serializer: StorageSerializers.object }
-)
-
-const embeddingsSelection = useStorage<ModelSelection>(
-  'ai-composer-embeddings-selection',
-  { provider: 'openai', model: 'text-embedding-3-large' },
-  localStorage,
-  { serializer: StorageSerializers.object }
-)
-
-const apiKeys = useStorage<ApiKeys>(
-  'ai-composer-api-keys',
-  { google: '', openai: '', mistralai: '' },
-  localStorage,
-  { serializer: StorageSerializers.object }
-)
+const { apiKeys, llmSelection, embeddingsSelection, contextSelection } = useSettingsStore()
 
 // Liste des providers disponibles
 const providers = Object.keys(modelsConfig) as Array<keyof typeof modelsConfig>
 
 // Computed pour les modèles disponibles
 const availableLlmModels = computed(() => {
-  const provider = llmSelection.value.provider as keyof typeof modelsConfig
+  const provider = llmSelection.provider as keyof typeof modelsConfig
   return modelsConfig[provider]?.llm || []
 })
 
 const availableEmbeddingsModels = computed(() => {
-  const provider = embeddingsSelection.value.provider as keyof typeof modelsConfig
+  const provider = embeddingsSelection.provider as keyof typeof modelsConfig
   return modelsConfig[provider]?.embeddings || []
 })
 
 // Watcher pour réinitialiser le modèle si le provider change et que le modèle n'existe plus
-watch(() => llmSelection.value.provider, (newProvider) => {
+watch(() => llmSelection.provider, (newProvider) => {
   const provider = newProvider as keyof typeof modelsConfig
   const models = modelsConfig[provider]?.llm || []
-  if (models.length > 0 && !models.includes(llmSelection.value.model)) {
-    llmSelection.value.model = models[0] || ''
+  if (models.length > 0 && !models.includes(llmSelection.model)) {
+    llmSelection.model = models[0] || ''
   }
 })
 
-watch(() => embeddingsSelection.value.provider, (newProvider) => {
+watch(() => embeddingsSelection.provider, (newProvider) => {
   const provider = newProvider as keyof typeof modelsConfig
   const models: string[] = modelsConfig[provider]?.embeddings || []
-  if (models.length > 0 && !models.includes(embeddingsSelection.value.model)) {
-    embeddingsSelection.value.model = models[0] || ''
+  if (models.length > 0 && !models.includes(embeddingsSelection.model)) {
+    embeddingsSelection.model = models[0] || ''
   }
 })
 
@@ -76,23 +45,19 @@ function isLocalProvider(provider: string): boolean {
 
 // Fonction pour vérifier si on doit afficher le champ API key
 function shouldShowApiKeyField(provider: string): boolean {
-  return !isLocalProvider(provider) && provider !== 'huggingface'
+  return  modelsConfig[provider as keyof typeof modelsConfig]?.auth === 'apiKey'
 }
 </script>
 
 <template>
   <div class="space-y-8 p-6 py-0">
-    <h2 class="text-1xl font-semibold mb-6">AI models choice</h2>
-
     <!-- Section LLM -->
     <div class="card bg-base-200">
       <div class="card-body">
-        <h3 class="card-title">Large Language Model (LLM)</h3>
-        
         <!-- Sélection du provider -->
         <div class="form-control">
           <label class="label">
-            <span class="label-text">Provider</span>
+            <span class="label-text">LLM provider</span>
           </label>
           <select v-model="llmSelection.provider" class="select select-bordered w-full">
             <option v-for="provider in providers" :key="provider" :value="provider">
@@ -138,27 +103,17 @@ function shouldShowApiKeyField(provider: string): boolean {
             class="input input-bordered w-full"
           />
         </div>
-
-        <!-- Message pour HuggingFace OAuth -->
-        <div v-if="llmSelection.provider === 'huggingface'" class="alert alert-info">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <span v-if="hfToken">✓ Connecté avec HuggingFace OAuth</span>
-          <span v-else>Connectez-vous via OAuth HuggingFace</span>
-        </div>
       </div>
     </div>
 
     <!-- Section Embeddings -->
     <div class="card bg-base-200">
       <div class="card-body">
-        <h3 class="card-title">Embeddings model</h3>
         
         <!-- Sélection du provider -->
         <div class="form-control">
           <label class="label">
-            <span class="label-text">Provider</span>
+            <span class="label-text">Embeddings provider</span>
           </label>
           <select v-model="embeddingsSelection.provider" class="select select-bordered w-full">
             <option v-for="provider in providers" :key="provider" :value="provider">
@@ -207,14 +162,50 @@ function shouldShowApiKeyField(provider: string): boolean {
             class="input input-bordered w-full"
           />
         </div>
+      </div>
+    </div>
 
-        <!-- Message pour HuggingFace OAuth -->
-        <div v-if="embeddingsSelection.provider === 'huggingface'" class="alert alert-info">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <span v-if="hfToken">✓ Logged in with HuggingFace OAuth</span>
-          <span v-else>Log in via OAuth HuggingFace</span>
+    <!-- Message pour HuggingFace OAuth -->
+    <div v-if="llmSelection.provider === 'huggingface' || embeddingsSelection.provider === 'huggingface'" class="alert alert-info">
+      <SigninHF class="mx-auto btn btn-ghost" />
+    </div>
+
+    <div class="card bg-base-200">
+      <div class="card-body">
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Context provider</span>
+          </label>
+          <select v-model="contextSelection.provider" class="select select-bordered w-full">
+            <option value="asknews">
+              AskNews
+            </option>
+          </select>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Client ID</span>
+          </label>
+          <input 
+            v-model="contextSelection.clientId"
+            type="text" 
+            placeholder="Enter your Client ID"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Client Secret</span>
+          </label>
+          <input 
+            v-model="contextSelection.clientSecret"
+            type="password" 
+            placeholder="Enter your Client Secret"
+            class="input input-bordered w-full"
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { addDocuments, similaritySearch } from '../plugins/langchain'
+import { addDocuments } from '../plugins/langchain'
 import { Document } from '@langchain/core/documents'
 import { v4 as uuidv4 } from 'uuid'
 // import { VectorStorage, type IVSDocument } from "@/plugins/VectorStorage"
@@ -15,6 +15,7 @@ interface DocMetadata {
 interface Source extends DocMetadata {
   content: string
   embeddings: boolean
+  active: boolean
 }
 
 export const useSourcesStore = defineStore('sources', () => {
@@ -33,7 +34,7 @@ export const useSourcesStore = defineStore('sources', () => {
   loadSources()
 
   async function generateVectors (source: Source) {
-    const chunkWithVectors = await addDocuments([
+    await addDocuments([
       new Document({ pageContent: source.content, metadata: { title: source.title, id: source.id } })
     ])
     const storedSource = getSourceById(source.id)
@@ -46,7 +47,8 @@ export const useSourcesStore = defineStore('sources', () => {
       id,
       title,
       content,
-      embeddings: false
+      embeddings: false,
+      active: true
     }
     sources.value.push(source)
     try {
@@ -69,10 +71,17 @@ export const useSourcesStore = defineStore('sources', () => {
     return sources.value.find((d) => d.id === id)
   }
 
+  function toggleSourceActive(id: string) {
+    const source = getSourceById(id)
+    if (source) {
+      source.active = !source.active
+    }
+  }
+
   async function $reset(): Promise<void> {
     // await vectorStore.reset()
     // await loadSources()
   }
 
-  return { sources, $reset, addSource, deleteSourceById, getSourceById, loadSources }
+  return { sources, $reset, addSource, deleteSourceById, getSourceById, loadSources, toggleSourceActive }
 })

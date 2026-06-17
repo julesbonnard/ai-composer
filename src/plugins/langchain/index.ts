@@ -5,19 +5,17 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnablePassthrough } from "@langchain/core/runnables";
 import { RunnableLambda } from "@langchain/core/runnables";
 import { Document } from "@langchain/core/documents";
-import { fetchNewsContext } from "./asknews";
 import { RunnableParallel } from "@langchain/core/runnables";
-import { type SearchResponse } from '@emergentmethods/asknews-typescript-sdk'
 
 const aiProviders = {
-  ollama: () => import("./ollama"),
+  // ollama: () => import("./ollama"),
   openai: () => import("./openai"),
   mistralai: () => import("./mistralai"),
-  huggingface: () => import("./huggingface"),
+  // huggingface: () => import("./huggingface"),
   google: () => import("./google"),
-  transformers: () => import("./transformers"),
-  webLLM: () => import("./webLLM"),
-  taskgenai: () => import("./taskgenai")
+  // transformers: () => import("./transformers"),
+  // webLLM: () => import("./webLLM"),
+  // taskgenai: () => import("./taskgenai")
 };
 
 // Fonction pour lire les sélections depuis localStorage
@@ -52,22 +50,13 @@ function searchContextFromDocuments(text: string) {
   return similaritySearch(text);
 }
 
-async function searchContextFromAskNews(text: string) {
-  const newsContext = await fetchNewsContext(text) as SearchResponse;
-  return newsContext.asDicts?.map((item => new Document({
-    pageContent: item.keyPoints?.join('\n') || item.summary,
-    metadata: { title: `${item.domainUrl} - ${item.articleUrl}` }
-  }))) || [];
-}
-
 export async function searchContext(text: string) {
   const results = await RunnableParallel.from({
-    documents: RunnableLambda.from(searchContextFromDocuments),
-    news: RunnableLambda.from(searchContextFromAskNews),
+    documents: RunnableLambda.from(searchContextFromDocuments)
   }).invoke(text)
   
   console.log('searchContext results', results);
-  return [...results.documents, ...results.news];
+  return [...results.documents];
 }
 
 export function autocompleteText(text: string, document: Document) {

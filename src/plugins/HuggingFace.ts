@@ -1,21 +1,14 @@
-import { useStorage, StorageSerializers } from '@vueuse/core'
 import { oauthLoginUrl, oauthHandleRedirectIfPresent } from '@huggingface/hub'
 import { InferenceClient } from '@huggingface/inference'
 import { computed } from 'vue'
-import { llmProvider, embeddingsProvider } from './langchain'
+import { useSettingsStore } from '../stores/settings'
 
-export const hfToken = useStorage('ai-composer-oauth', null, localStorage, {
-  serializer: StorageSerializers.object
-})
-
-export const shouldUseHfOAuth = computed(() => {
-  return (llmProvider.provider === 'huggingface' || embeddingsProvider.provider === 'huggingface') && !hfToken.value
-})
+const { apiKeys } = useSettingsStore()
 
 export async function handleHfLoginRedirect() {
   const result = await oauthHandleRedirectIfPresent()
   if (result) {
-    hfToken.value = result
+    apiKeys['huggingface'] = result
   }
 }
 
@@ -28,4 +21,10 @@ export async function handleHfLogin() {
     })) + '&prompt=consent'
 }
 
-export const inferenceClient = computed(() => new InferenceClient(hfToken.value?.accessToken))
+export const huggingFaceToken = computed(() => apiKeys['huggingface'] as { accessToken: string, userInfo: any })
+
+export const logoutHf = () => {
+  apiKeys['huggingface'] = null
+}
+
+export const inferenceClient = computed(() => new InferenceClient(huggingFaceToken.value?.accessToken as string))

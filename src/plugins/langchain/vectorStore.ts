@@ -35,6 +35,6 @@ export function getVectorStore(embeddings: EmbeddingsInterface) {
       return [vectors, chunks];
     },
     addVectors: vectorStore.addVectors,
-    similaritySearch: (query: string) => mmrRetriever.invoke(query)
+    similaritySearch: (query: string) => mmrRetriever.invoke(query) as Promise<Document[]>
   };
 }

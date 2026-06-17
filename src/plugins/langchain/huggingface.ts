@@ -1,6 +1,10 @@
 import { HuggingFaceInference } from "@langchain/community/llms/hf";
 import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
-import { hfToken } from "../HuggingFace";
+import { useSettingsStore } from '../../stores/settings'
+const { apiKeys } = useSettingsStore()
+import { computed } from "vue";
+
+const hfToken = computed(() => apiKeys['huggingface'] as { accessToken: string, userInfo: any });
 
 export function getEmbeddings(
   model: string = "sentence-transformers/all-MiniLM-L6-v2",

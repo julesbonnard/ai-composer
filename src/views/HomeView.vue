@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import TiptapEditor from '../components/TiptapEditor.vue'
-import SourcesUploader from '../components/SourcesUploader.vue'
+import SourcesDragDrop from '../components/SourcesDragDrop.vue'
+import SourcesManualAdd from '../components/SourcesManualAdd.vue'
+import SourcesAskNews from '../components/SourcesAskNews.vue'
 import SourcesList from '../components/SourcesList.vue'
-import SigninHF from '../components/SigninHF.vue'
-import { hfToken, shouldUseHfOAuth } from '../plugins/HuggingFace'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/langchain'
 import type { DocumentInterface } from '@langchain/core/documents'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
-const router = useRouter()
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
@@ -53,23 +51,20 @@ async function reset() {
 </script>
 
 <template>
-  <aside class="shadow-md flex flex-col min-w-[300px] relative">    
-    <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
+  <aside class="shadow-md flex flex-col min-w-95 relative">    
+    <!-- <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
       Get started
-    </RouterLink>
+    </RouterLink> -->
     <RouterLink id="get-started" class="btn btn-lg btn-secondary" :to="{ name: 'settings' }">
       Settings
     </RouterLink>
-    <SigninHF v-if="shouldUseHfOAuth" class="mx-auto btn btn-ghost" />
-    <div v-if="hfToken">
-      <div class="avatar">
-        <div class="w-24 rounded">
-          <img :src="hfToken.userInfo.picture" />
-        </div>
-      </div>
-      <button class="btn btn-block btn-error" @click="hfToken = null">Logout</button>
+    
+    <div class="mt-8 mx-3 mb-3 space-y-4">
+      <SourcesDragDrop />
+      <SourcesManualAdd />
+      <SourcesAskNews />
     </div>
-    <SourcesUploader />
+    
     <SourcesList />
     <button class="btn btn-soft mt-auto" @click="clipboard">Copy to clipboard</button>
     <div role="alert" class="alert alert-warning">

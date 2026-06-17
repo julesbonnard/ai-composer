@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { handleHfLogin, handleHfLoginRedirect } from '../plugins/HuggingFace'
+import { handleHfLogin, handleHfLoginRedirect, huggingFaceToken, logoutHf } from '../plugins/HuggingFace'
 
 handleHfLoginRedirect()
 </script>
 
 <template>
-  <button @click="handleHfLogin">
+  <button v-if="huggingFaceToken" @click="handleHfLogin">
     <svg
       width="246"
       height="36"
@@ -138,4 +138,12 @@ handleHfLoginRedirect()
       </defs>
     </svg>
   </button>
+  <div v-else">
+    <div class="avatar">
+      <div class="w-24 rounded">
+        <img :src="huggingFaceToken.userInfo.picture" />
+      </div>
+    </div>
+    <button class="btn btn-block btn-error" @click="logoutHf">Logout</button>
+  </div>
 </template>

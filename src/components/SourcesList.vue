@@ -12,6 +12,10 @@ const isActive = (id: string | number) => {
 
 const sourcesStore = useSourcesStore()
 const { sources } = storeToRefs(sourcesStore)
+
+const handleCheckboxChange = (sourceId: string) => {
+  sourcesStore.toggleSourceActive(sourceId)
+}
 </script>
 
 <template>
@@ -19,12 +23,19 @@ const { sources } = storeToRefs(sourcesStore)
     <li
       v-for="(source, i) in sources"
       :key="i"
-      class="cursor-pointer px-3 py-1 text-sm leading-4 transition-colors duration-150"
+      class="px-3 py-1 text-sm leading-4 transition-colors duration-150 flex items-center gap-2"
       :class="{ 'bg-indigo-50': isActive(source.id) }"
     >
+      <input
+        type="checkbox"
+        :checked="source.active"
+        @change="handleCheckboxChange(source.id)"
+        class="checkbox checkbox-sm checkbox-primary"
+        :title="source.active ? 'Désactiver cette source' : 'Activer cette source'"
+      />
       <router-link
         :to="{ name: 'source', params: { id: source.id } }"
-        class="no-underline text-purple-700 hover:underline"
+        class="no-underline text-purple-700 hover:underline flex-1 cursor-pointer"
       >
         <span v-if="source.embeddings == false" class="loading loading-spinner loading-sm"></span>
         {{ source.title }}

@@ -42,9 +42,6 @@ import { RouterLink } from 'vue-router'
       </p>
       <p class="mb-4">This webapp is not affiliated with Mistral AI.</p> -->
 
-      <!-- <SigninHF class="mx-auto cursor-pointer" @click="handleHfLogin" />
-      <p>{{ testInferenceResult }}</p> -->
-
       <h2 class="mb-3 font-semibold">How to</h2>
       <p class="mb-4">
         You can add new sources on the left panel, like press releases, reports, notes or
