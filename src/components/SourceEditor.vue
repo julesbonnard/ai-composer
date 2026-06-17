@@ -93,21 +93,61 @@ async function save() {
 </script>
 
 <template>
-  <div class="shadow-sm overflow-y-auto">
-    <div class="sticky top-0 pr-2 z-101 join float-right">
-      <button @click="save" class="btn btn-neutral btn-xs join-item">Save</button>
-      <button
-        v-if="route.name === 'source'"
-        @click="deleteSource"
-        class="btn btn-neutral btn-xs join-item"
-      >
-        Delete
-      </button>
-      <RouterLink :to="{ name: 'home' }" class="btn btn-neutral btn-xs join-item">
-        Close
-      </RouterLink>
-    </div>
+  <div class="source-editor bg-base-100 border-r border-base-300 overflow-y-auto">
+    <header
+      class="sticky top-0 z-10 flex items-center gap-2 px-6 h-14 border-b border-base-300 bg-base-100/90 backdrop-blur"
+    >
+      <span class="icon-[tabler--file-text] size-5 text-primary"></span>
+      <h2 class="text-base font-semibold tracking-tight">Source</h2>
+      <div class="ml-auto flex items-center gap-1">
+        <button @click="save" class="btn btn-primary btn-sm">
+          <span class="icon-[tabler--device-floppy] size-4"></span> Save
+        </button>
+        <button
+          v-if="route.name === 'source'"
+          @click="deleteSource"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Delete source"
+        >
+          <span class="icon-[tabler--trash] size-4"></span>
+        </button>
+        <RouterLink
+          :to="{ name: 'home' }"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Close"
+        >
+          <span class="icon-[tabler--x] size-4"></span>
+        </RouterLink>
+      </div>
+    </header>
 
     <editor-content :editor="editor" />
   </div>
 </template>
+
+<style>
+@reference "../assets/main.css";
+
+/* Éditeur de SOURCES : volontairement distinct de l'article — sans-serif,
+   compact, allure « notes / référence » plutôt que mise en page éditoriale. */
+.source-editor .ProseMirror {
+  @apply font-sans text-sm/relaxed text-base-content/90 px-6 py-5 whitespace-break-spaces wrap-break-word break-normal;
+}
+
+.source-editor .ProseMirror:focus {
+  @apply outline-none;
+}
+
+.source-editor .ProseMirror > * + * {
+  @apply mt-2;
+}
+
+.source-editor .ProseMirror h1 {
+  @apply font-sans text-lg font-semibold tracking-tight text-base-content mb-3;
+}
+
+.source-editor .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  @apply float-left text-base-content/30 pointer-events-none h-0;
+}
+</style>

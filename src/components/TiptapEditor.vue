@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
-  modelValue?: Object
+  modelValue?: object
   autocompletion: (text: string, fullText: string) => Promise<any>
   shorten: (text: string) => Promise<string>
   alternative: (text: string) => Promise<string>
@@ -11,6 +11,7 @@ const emits = defineEmits(['update:modelValue'])
 import { ref, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { BubbleMenu } from '@tiptap/vue-3/menus'
+import type { EditorState } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import Document from '@tiptap/extension-document'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -113,83 +114,176 @@ const wordCountMax = computed(() => {
   if (wordCount.value > 250) return 500
   return 300
 })
+
+// Type structurel minimal (ce qu'on utilise du callback shouldShow de BubbleMenu).
+type ShouldShowProps = { editor: { isActive: (name: string) => boolean }; state: EditorState }
+
+// Menu de sélection (shorten/alternative) : uniquement sur une vraie sélection,
+// et pas quand on est déjà dans un passage IA (le tooltip de revue prend le relais).
+function showSelectionMenu({ editor, state }: ShouldShowProps) {
+  return !state.selection.empty && !editor.isActive('completion')
+}
+
+// Tooltip de revue : visible dès que le curseur est dans un passage généré par l'IA.
+function showCompletionReview({ editor }: ShouldShowProps) {
+  return editor.isActive('completion')
+}
+
+// Libellé de provenance affiché dans le tooltip (appel direct en template pour
+// être réévalué à chaque transaction — un computed ne se rafraîchirait pas).
+function completionProvenance() {
+  const attrs = editor.value?.getAttributes('completion') ?? {}
+  if (attrs['data-kind'] === 'shorten') return 'Shortened from your text'
+  if (attrs['data-kind'] === 'alternative') return 'Alternative wording'
+  return attrs['data-source'] ? `Source · ${attrs['data-source']}` : 'From your sources'
+}
+
+// Marque tout le passage IA comme relu : on étend d'abord la sélection à toute
+// l'étendue de la marque (et pas seulement ce qui est sélectionné) avant de la retirer.
+function reviewCompletion() {
+  editor.value?.chain().focus().extendMarkRange('completion').unsetMark('completion').run()
+}
 </script>
 
 <template>
-  <div class="sticky top-0 overflow-x-hidden text-right text-xs pr-1 z-50">
-    <div :style="`width: ${(wordCount / wordCountMax) * 100}%`" class="h-5 bg-neutral/50"></div>
+  <div class="sticky top-0 z-50 h-1.5 bg-base-200/80 backdrop-blur-sm overflow-x-hidden"
+    :title="`${wordCount} words`">
+    <div :style="`width: ${Math.min((wordCount / wordCountMax) * 100, 100)}%`"
+      class="h-full bg-primary/60 transition-[width] duration-300 ease-out"></div>
     <div v-for="step in [200, 400, 600, 800]" :key="step"
-      class="absolute top-0 border-l border-black pl-1 text-neutral-content text-xs"
+      class="absolute top-0 h-full border-l border-base-content/15"
       :style="`left: ${(step / wordCountMax) * 100}%`">
-      {{ step }}{{ step === 200 ? ' words' : '' }}
+      <span class="absolute top-2 left-1 text-[10px] font-medium text-base-content/40 whitespace-nowrap">
+        {{ step }}{{ step === 200 ? ' words' : '' }}
+      </span>
     </div>
   </div>
 
-  <bubble-menu v-if="editor" :editor="editor" :tippy-options="{ duration: 100 }" class="z-10">
-    <button class="btn btn-neutral btn-sm" @click="editor.chain().focus().shorten().run()">
-      shorten
+  <!-- Sélection de texte : raccourcir / reformuler -->
+  <bubble-menu
+    v-if="editor"
+    :editor="editor"
+    plugin-key="selectionMenu"
+    :should-show="showSelectionMenu"
+    class="join shadow-lg rounded-field overflow-hidden z-10"
+  >
+    <button class="btn btn-sm btn-neutral join-item" @click="editor.chain().focus().shorten().run()">
+      <span class="icon-[tabler--arrows-minimize] size-4"></span> Shorten
     </button>
-    <button class="btn btn-neutral btn-sm" @click="editor.chain().focus().alternative().run()">
-      alternative
-    </button>
-    <button v-show="editor.isActive('completion')" class="btn btn-neutral btn-sm"
-      @click="editor.chain().focus().unsetMark('completion').run()">
-      review
+    <button
+      class="btn btn-sm btn-neutral join-item"
+      @click="editor.chain().focus().alternative().run()"
+    >
+      <span class="icon-[tabler--refresh] size-4"></span> Alternative
     </button>
   </bubble-menu>
 
-  <editor-content :editor="editor" spellcheck="true" class="m-5" />
+  <!-- Revue d'un passage généré par l'IA : provenance + acceptation -->
+  <bubble-menu
+    v-if="editor"
+    :editor="editor"
+    plugin-key="completionReview"
+    :should-show="showCompletionReview"
+    :options="{ placement: 'top', offset: 8 }"
+    class="z-20"
+  >
+    <div
+      class="flex items-center gap-2.5 rounded-box border border-base-300 bg-base-100 px-3 py-2 shadow-xl"
+    >
+      <span class="icon-[tabler--sparkles] size-4 shrink-0 text-primary"></span>
+      <div class="min-w-0">
+        <p class="text-xs font-semibold leading-tight">AI-generated</p>
+        <p class="max-w-[16rem] truncate text-xs leading-tight text-base-content/60">
+          {{ completionProvenance() }}
+        </p>
+      </div>
+      <button
+        class="btn btn-xs btn-primary ml-1 shrink-0"
+        title="Accept this passage and remove the AI highlight"
+        @click="reviewCompletion"
+      >
+        <span class="icon-[tabler--check] size-3.5"></span> Reviewed
+      </button>
+    </div>
+  </bubble-menu>
+
+  <editor-content :editor="editor" spellcheck="true" class="article-editor" />
 </template>
 
 <style>
 @reference "../assets/main.css";
 
-.ProseMirror {
-  @apply p-3 whitespace-break-spaces wrap-break-word break-normal mt-10 ml-5;
+/* Styles propres à l'éditeur d'ARTICLE (scopés via .article-editor) :
+   colonne de lecture centrée, mesure confortable, serif éditoriale.
+   L'éditeur de SOURCES a ses propres styles (cf. SourceEditor.vue). */
+.article-editor .ProseMirror {
+  @apply font-serif text-lg/relaxed text-base-content max-w-[68ch] mx-auto px-6 pt-12 pb-32 whitespace-break-spaces wrap-break-word break-normal;
 }
 
-.ProseMirror:focus {
+/* Le caret signale le focus : pas d'anneau sur la surface d'écriture elle-même. */
+.article-editor .ProseMirror:focus {
   @apply outline-none;
 }
 
-.ProseMirror>*+* {
-  @apply mt-3;
+.article-editor .ProseMirror > * + * {
+  @apply mt-4;
 }
 
-.ProseMirror h1 {
-  @apply text-4xl font-semibold;
+.article-editor .ProseMirror h1 {
+  @apply font-serif text-[2.6rem]/[1.15] font-semibold tracking-tight text-balance mb-1;
 }
 
-.ProseMirror .lead {
-  @apply text-xl font-semibold;
+.article-editor .ProseMirror h2 {
+  @apply font-serif text-2xl/snug font-semibold tracking-tight text-balance mt-8;
 }
 
-.ProseMirror .unvalid {
+.article-editor .ProseMirror .lead {
+  @apply text-xl/relaxed font-medium text-base-content/80 text-pretty;
+}
+
+.article-editor .ProseMirror p {
+  @apply text-pretty;
+}
+
+.article-editor .ProseMirror .unvalid {
   @apply text-error;
 }
 
-.ProseMirror strong {
+.article-editor .ProseMirror strong {
   @apply font-semibold;
 }
 
-.ProseMirror .completion {
-  @apply underline decoration-dotted bg-inherit;
+/* Passages générés par l'IA : marqueur lisible en clair comme en sombre
+   (couleurs dérivées des variables de thème, qui s'adaptent automatiquement).
+   Curseur de texte inchangé ; la provenance/revue passe par le tooltip interactif. */
+.article-editor .ProseMirror .completion {
+  border-radius: 3px;
+  padding-bottom: 1px;
+  background-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  text-decoration: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  transition: background-color 0.15s ease;
 }
 
-.ProseMirror .is-empty::before {
+.article-editor .ProseMirror .completion:hover {
+  background-color: color-mix(in oklab, var(--color-primary) 26%, transparent);
+}
+
+.article-editor .ProseMirror .is-empty::before {
   content: attr(data-placeholder);
-  @apply float-left text-neutral/20 pointer-events-none h-0;
+  @apply float-left text-base-content/30 italic pointer-events-none h-0;
 }
 
-.ProseMirror .autocompletion::after,
-.ProseMirror .autocompletion.inline {
+/* Suggestion fantôme (avant insertion) : dégradé signature dérivé du thème. */
+.article-editor .ProseMirror .autocompletion::after,
+.article-editor .ProseMirror .autocompletion.inline {
   content: attr(data-autocompletion);
   pointer-events: none;
-  background: linear-gradient(90.4deg,
-      rgba(244, 199, 62, 1) -3.8%,
-      rgba(244, 62, 62, 1) 46.8%,
-      rgba(245, 61, 195, 1) 98.8%);
+  background: linear-gradient(95deg, var(--color-primary), var(--color-secondary));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
 }

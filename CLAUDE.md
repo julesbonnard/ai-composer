@@ -100,10 +100,24 @@ depuis l'app.
 ### Éditeur Tiptap — `src/plugins/` (hors langchain)
 - `Autocompletion.ts` : extension principale (décorations ProseMirror, raccourcis
   clavier Tab/↑/↓/Échap, commandes `shorten`/`alternative`). C'est le fichier le plus
-  dense, à lire en premier pour toute évolution de l'UX d'écriture.
+  dense, à lire en premier pour toute évolution de l'UX d'écriture. `shorten`/`alternative`
+  enveloppent désormais leur résultat dans la mark `completion` (donc signalés comme IA).
 - `Headline.ts` (h1, titre), `Lead.ts` (chapô), `Completion.ts` (mark de complétion liée
   à une source), `Recognition.ts` (mark, entités), `Limit.ts` (compteur de signes/mots
   avec dépassement signalé en rouge). Schéma de doc : `headline lead (paragraph|heading)*`.
+- **Mark `completion` (passages générés par l'IA)** : attributs `data-source` (nom de
+  source ; repli sur l'ancien `title` au parsing HTML), `data-id`, `data-kind` ∈
+  `source | shorten | alternative` (pilote le libellé de provenance). Au survol/clic d'un
+  passage, un `BubbleMenu` dédié (`plugin-key="completionReview"`, `should-show` =
+  `editor.isActive('completion')`) affiche la provenance + un bouton **Reviewed** qui
+  retire la mark sur **toute son étendue** (`extendMarkRange('completion').unsetMark(...)`).
+  Le menu de sélection Shorten/Alternative est un second `BubbleMenu` séparé.
+  ⚠️ `BubbleMenu` v3 (`@tiptap/vue-3/menus`) : props `pluginKey` / `shouldShow` / `options`
+  (Floating UI), **pas** `tippyOptions` (silencieusement ignoré).
+- **Styles d'éditeur scopés** : les styles éditoriaux (serif, mesure 68ch) sont sous
+  `.article-editor` (`TiptapEditor.vue`) ; l'éditeur de sources a ses propres styles sous
+  `.source-editor` (sans-serif compact, `SourceEditor.vue`). Ne pas remettre de règle
+  `.ProseMirror` globale (elle fuiterait entre les deux éditeurs).
 
 ### État — `src/stores/`
 - `editor.ts` : document Tiptap courant, persisté dans `localStorage` (clé `article`).
@@ -115,11 +129,26 @@ depuis l'app.
 
 ### UI — `src/components/` & `src/views/`
 - `HomeView.vue` : layout 3 colonnes (sources | panneau contextuel | éditeur).
-- `TiptapEditor.vue` : montage de l'éditeur + bubble menu + jauge de longueur.
+- `TiptapEditor.vue` : montage de l'éditeur + bubble menus + jauge de longueur.
 - `SourcesDragDrop.vue` (PDF via `pdfjs-dist` + `vue3-dropzone`), `SourcesManualAdd.vue`,
   `SourcesAskNews.vue`, `SourcesList.vue`, `SourceEditor.vue`.
 - `ModelSelector.vue` / `SettingsComponent.vue` : réglages providers/clés.
+- `ThemeToggle.vue` : bascule auto/clair/sombre (en-tête de la barre latérale).
 - `SigninHF.vue` : OAuth Hugging Face (token stocké pour les modèles HF).
+
+### Thème & typographie — `src/assets/main.css` + `src/composables/useTheme.ts`
+- Direction visuelle **éditorial « papier »** : canvas chaud, encre sombre, **magenta =
+  couleur signature de l'IA**. Tokens daisyUI en OKLCH.
+- **Deux thèmes daisyUI** déclarés via `@plugin "daisyui/theme"` : `aicomposer` (clair,
+  `default`) et `aicomposer-dark` (`prefersdark: true` → suit `prefers-color-scheme`).
+  Exprimer les couleurs custom via les variables de thème (`var(--color-*)`, `color-mix`)
+  pour qu'elles s'adaptent automatiquement clair/sombre — éviter les couleurs codées en dur.
+- `useTheme.ts` : préférence `auto | light | dark` persistée (`@vueuse/core`), appliquée via
+  un `effectScope` détaché qui pose/retire `data-theme` sur `<html>` (`auto` = pas
+  d'attribut, daisyUI gère). Importé une fois dans `App.vue`.
+- **Polices auto-hébergées** (`@fontsource-variable/*`, importées dans `main.ts` — pas de
+  CDN tiers, cohérent avec l'objectif confidentialité) : **Inter** (`--font-sans`, UI) et
+  **Newsreader** (`--font-serif`, corps de l'article). Tokens dans `@theme`.
 
 ### Config modèles — `src/config/models.ts`
 Table déclarative `{ provider: { local, llm[], embeddings[], auth } }` où `auth` ∈
@@ -155,6 +184,10 @@ avec les moteurs réellement câblés dans `ai/engine.ts`. `local: true` = navig
 - Ancien code mort supprimé (juin 2026) : `src/plugins/transformers.ts` (importait
   `@xenova/transformers`) et `src/plugins/VectorStorage/` (lib maison IndexedDB débranchée).
 - Sources **non persistées** (vector store en mémoire `ai/vectorStore.ts`). Cf. ROADMAP D.
+- Provenance des complétions migrée de l'attribut `title` vers `data-source` (parsing HTML
+  avec repli sur `title`). Les articles **déjà persistés** (clé `article`) chargés depuis
+  le JSON `localStorage` perdent la provenance des complétions antérieures (le texte reste) ;
+  impact faible vu que les sources ne sont de toute façon pas persistées.
 - `@langchain/community` est marqué **deprecated** en amont (subsiste pour les workers locaux).
 - Routes `get-started` / `GetStarted.vue` présentes mais le lien est commenté dans `HomeView`.
 - CORS de `/api/*` codé en dur sur `https://ai-composer.vercel.app` (`vercel.json`).

@@ -83,20 +83,31 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       suggestCompletion(view, node, pos, availableCompletions, 0)
     }
 
-    const shorten = async (view: EditorView, text: string, from: number, to: number) => {
-      const content = await this.options.shorten(text)
+    // Remplace [from, to] par le texte transformé, marqué comme généré par l'IA
+    // (mark `completion`) pour qu'il soit signalé et révisable comme une complétion.
+    const replaceWithCompletion = (
+      view: EditorView,
+      content: string,
+      from: number,
+      to: number,
+      kind: 'shorten' | 'alternative'
+    ) => {
       if (content) {
-        view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(content)))
+        const mark = view.state.schema.marks.completion.create({ 'data-kind': kind })
+        const textNode = view.state.schema.text(content, [mark])
+        view.dispatch(view.state.tr.replaceWith(from, to, textNode))
       }
       view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
     }
 
+    const shorten = async (view: EditorView, text: string, from: number, to: number) => {
+      const content = await this.options.shorten(text)
+      replaceWithCompletion(view, content, from, to, 'shorten')
+    }
+
     const alternative = async (view: EditorView, text: string, from: number, to: number) => {
       const content = await this.options.alternative(text)
-      if (content) {
-        view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(content)))
-      }
-      view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+      replaceWithCompletion(view, content, from, to, 'alternative')
     }
 
     return {
@@ -256,7 +267,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
           this.editor
             .chain()
             .insertContent(
-              `<mark class="completion" data-id="${this.storage.currentCompletion.context.id}" title="${this.storage.currentCompletion.context.metadata.title}">${this.storage.currentCompletion.answer}</mark> `
+              `<mark class="completion" data-kind="source" data-id="${this.storage.currentCompletion.context.id}" data-source="${this.storage.currentCompletion.context.metadata.title}">${this.storage.currentCompletion.answer}</mark> `
             )
             .run()
           this.editor.view.dispatch(
