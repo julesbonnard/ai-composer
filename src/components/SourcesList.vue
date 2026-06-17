@@ -1,38 +1,57 @@
 <script setup lang="ts">
-import { useSourcesStore } from '@/stores/sources'
+import { useSourcesStore } from '../stores/sources'
 import { storeToRefs } from 'pinia'
+
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const isActive = (id: string | number) => {
+  return route.name === 'source' && route.params.id == id
+}
 
 const sourcesStore = useSourcesStore()
 const { sources } = storeToRefs(sourcesStore)
+
+const handleCheckboxChange = (sourceId: string) => {
+  sourcesStore.toggleSourceActive(sourceId)
+}
 </script>
 
 <template>
-  <ol>
-    <li v-for="(source, i) in sources" :key="i">
-      <router-link :to="{name: 'source', params: { id: source.id }}">{{ source.title }}</router-link>
+  <ol class="max-w-full wrap-break-word">
+    <li
+      v-for="(source, i) in sources"
+      :key="i"
+      class="group flex items-center gap-2.5 px-4 py-1.5 text-sm leading-snug border-l-2 transition-colors duration-150"
+      :class="
+        isActive(source.id)
+          ? 'border-primary bg-primary/8'
+          : 'border-transparent hover:bg-base-100'
+      "
+    >
+      <input
+        type="checkbox"
+        :checked="source.active"
+        @change="handleCheckboxChange(source.id)"
+        class="checkbox checkbox-xs checkbox-primary"
+        :title="source.active ? 'Disable this source' : 'Enable this source'"
+      />
+      <router-link
+        :to="{ name: 'source', params: { id: source.id } }"
+        class="flex-1 cursor-pointer no-underline transition-colors"
+        :class="
+          source.active
+            ? 'text-base-content group-hover:text-primary'
+            : 'text-base-content/40 group-hover:text-primary'
+        "
+      >
+        <span
+          v-if="source.embeddings == false"
+          class="loading loading-spinner loading-xs align-middle"
+        ></span>
+        {{ source.title }}
+      </router-link>
     </li>
   </ol>
 </template>
-
-<style lang="scss" scoped>
-  ol {
-    max-width: 100%;
-    word-wrap: break-word;
-    // list-style: none;
-    // padding: 0;
-    // margin: 0;
-    li {
-      cursor: pointer;
-      padding: 4px 12px;
-      font-size: 0.8rem;
-      line-height: 1rem;
-      &:has(> a.router-link-active) {
-        background-color: rgb(243,243,255);
-      }
-      a {
-        text-decoration: none;
-        color: #8232eb;
-      }
-    }
-  }
-</style>

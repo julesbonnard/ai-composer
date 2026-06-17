@@ -14,6 +14,8 @@ dist-ssr
 coverage
 *.local
 .env
+*.tsbuildinfo
+.vite
 
 /cypress/videos/
 /cypress/screenshots/
@@ -28,3 +30,9 @@ coverage
 *.sln
 *.sw?
 .npmrc
+
+.env
+public/gemma2-2b-it-gpu-int8.bin
+public/gemma3-1b-it-int4.task
+.vercel
+.env*.local

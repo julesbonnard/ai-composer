@@ -1,222 +1,112 @@
 <script setup lang="ts">
-import { Analytics } from '@vercel/analytics/vue'
 import TiptapEditor from '../components/TiptapEditor.vue'
-import SourcesUploader from '../components/SourcesUploader.vue'
+import SourcesDragDrop from '../components/SourcesDragDrop.vue'
+import SourcesManualAdd from '../components/SourcesManualAdd.vue'
+import SourcesAskNews from '../components/SourcesAskNews.vue'
 import SourcesList from '../components/SourcesList.vue'
+import ThemeToggle from '../components/ThemeToggle.vue'
 import { storeToRefs } from 'pinia'
-import { useEditorStore } from '@/stores/editor'
-import { useSourcesStore } from '@/stores/sources'
+import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { getChatCompletion } from '@/plugins/llm'
-import prompts from '../prompts/index'
+import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/ai'
+import type { Doc } from '../plugins/ai'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
 
-const sourcesStore = useSourcesStore()
-const { search } = sourcesStore
-
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
-const lang = 'fr'
-
-type SimilarItem = {
-  hits: number
-  id: string
-  metadata: {
-    title: string
-  }
-  text: string
-  score: number
-  timestamp: number
+function generateCompletion(text: string, doc: Doc) {
+  return () => autocompleteText(text, doc)
 }
 
-const autocompletion = async (text: string) => {
-  const semanticSearch = await search(text)
-  
-  if (!semanticSearch || semanticSearch.similarItems.length === 0) {
-    throw 'No similar items found'
+const autocompletion = async (text: string, fullText: string) => {
+  const context = await searchContext(fullText)
+  if (!context || context.length === 0) {
+    throw 'No context found'
   }
 
-  return (semanticSearch.similarItems as SimilarItem[]).map(similarItem => 
-   (() => {
-    let cachedPromise: Promise<any> | null = null
-    
-    return () => {
-      if (cachedPromise) {
-        return cachedPromise
-      } else {
-        cachedPromise = getChatCompletion({
-          model: 'mistral-small-latest',
-          messages: prompts[lang].autocompletion(
-            text, {
-              content: similarItem.text, 
-              name: similarItem.metadata.title
-            }
-          ),
-          maxTokens: 100,
-          temperature: 0.3,
-          stream: false
-        })
-        .then(choices => {
-          if (!choices || choices.length === 0 || !choices[0].message.content) {
-            throw 'No completion found'
-          }
-          return {
-            answer: choices[0].message.content.slice(text.length),
-            context: {
-              content: similarItem.text,
-              name: similarItem.metadata.title,
-              id: similarItem.id
-            }
-          }
-        })
-        return cachedPromise
-      }
-    }
-  })())
+  return context.map((doc) => generateCompletion(text, doc))
 }
 
 const shorten = async (text: string) => {
-  const choices = await getChatCompletion({
-    model: 'mistral-small-latest',
-    messages: prompts[lang].shorten(text),
-    maxTokens: 100
-  })
-
-  if (!choices || choices.length === 0 || !choices[0].message.content) {
-    throw 'No completion found'
-  }
-
-  return choices[0].message.content as string
+  return shortenText(text)
 }
 
 const alternative = async (text: string) => {
-  const choices = await getChatCompletion({
-    model: 'mistral-small-latest',
-    messages: prompts[lang].alternative(text),
-    maxTokens: 100
-  })
-
-  if (!choices || choices.length === 0 || !choices[0].message.content) {
-    throw 'No completion found'
-  }
-
-  return choices[0].message.content as string
+  return alternativeText(text)
 }
 
 async function clipboard() {
   const html = editor.value?.exportHTML()
   if (!html) return false
-  await navigator.clipboard.writeText(html);
+  await navigator.clipboard.writeText(html)
 }
 
-async function reset () {
-  await sourcesStore.$reset()
+async function reset() {
   editorStore.$reset()
   editor.value?.reset()
 }
-
 </script>
 
 <template>
-  <Analytics />
-  <main>
-    <routerView />
-    <aside>
-      <RouterLink class="get-started" :to="{ name: 'get-started' }">Get started</RouterLink>
-      <SourcesUploader />
+  <aside class="bg-base-200 border-r border-base-300 flex flex-col min-w-95 relative">
+    <header class="flex items-center gap-2 px-4 h-14 border-b border-base-300 shrink-0">
+      <span class="icon-[tabler--feather] size-5 text-primary"></span>
+      <span class="font-semibold tracking-tight">AI Composer</span>
+      <div class="ml-auto flex items-center gap-1">
+        <ThemeToggle />
+        <RouterLink
+          id="get-started"
+          :to="{ name: 'settings' }"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Settings"
+        >
+          <span class="icon-[tabler--settings] size-4"></span>
+        </RouterLink>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto">
+      <div class="p-3 space-y-3">
+        <SourcesDragDrop />
+        <SourcesManualAdd />
+        <SourcesAskNews />
+      </div>
+
+      <div
+        class="px-4 pt-3 pb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-base-content/50"
+      >
+        <span class="icon-[tabler--books] size-3.5"></span> Sources
+      </div>
       <SourcesList />
-      <button class="copy" @click="clipboard">Copy to clipboard</button>
-      <p class="warning">
-        Keep in mind that artificial intelligence is prone to making a lot of mistakes, so use it at your own risk and be vigilant.
+    </div>
+
+    <footer class="border-t border-base-300 p-3 space-y-2 shrink-0">
+      <p class="flex gap-2 text-xs leading-snug text-base-content/60">
+        <span class="icon-[tabler--alert-triangle] size-4 shrink-0 text-warning mt-px"></span>
+        AI is prone to mistakes — use it at your own risk and stay vigilant.
       </p>
-      <button class="reset" @click="reset">Reset</button>
-    </aside>
-    <article>
-      <TiptapEditor v-model="article" ref="editor" :autocompletion="autocompletion" :shorten="shorten" :alternative="alternative" />
-    </article>
-  </main>
+      <div class="join w-full">
+        <button class="btn btn-sm btn-soft join-item flex-1" @click="clipboard">
+          <span class="icon-[tabler--clipboard] size-4"></span> Copy
+        </button>
+        <button class="btn btn-sm btn-soft join-item flex-1" @click="reset">
+          <span class="icon-[tabler--refresh] size-4"></span> Reset
+        </button>
+      </div>
+    </footer>
+  </aside>
+
+  <RouterView class="col-start-2 row-start-1" />
+
+  <article class="col-start-3 overflow-y-auto">
+    <TiptapEditor
+      v-model="article"
+      ref="editor"
+      :autocompletion="autocompletion"
+      :shorten="shorten"
+      :alternative="alternative"
+    />
+  </article>
 </template>
-
-<style lang="scss">
-main {
-  height: 100%;
-  display: grid; 
-  grid-template-columns: 0.4fr 0fr 1.6fr; 
-  grid-template-rows: 1fr; 
-  gap: 0px 0px;
-  grid-template-areas: "aside source article";
-  transition: 150ms;
-
-  &:has(> #source-editor), &:has(> #get-started) {
-    grid-template-columns: 0.4fr 0.7fr 0.9fr;
-  }
-}
-aside {
-  grid-area: aside;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: white;
-  // padding: 2rem 1rem 0 2rem;
-  box-shadow: 10px 0px 15px -3px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-
-  // .fixed {
-  //   position: sticky;
-  //   top: 32px;
-  //   width: 100%;
-  //   height: 90vh;
-  // }
-
-  button, .get-started {
-    background-color: #8232eb; /* Green */
-    border: none;
-    color: white;
-    padding: 15px 32px;
-    font-size: 16px;
-    text-align: center;
-    text-decoration: none;
-    width: 100%;
-    cursor: pointer;
-    &:hover {
-      background-color: rgba(#8232eb, 0.9);
-    }
-    &:disabled {
-      cursor: default;
-      background-color: #ccc;
-    }
-    &.copy {
-      margin-top: auto;
-    }
-    &.reset {
-      padding: 7px 24px;
-      font-size: 14px;
-    }
-  }
-
-  .warning {
-    margin: 2rem 14px;
-    color: #8232eb;
-    text-align: center;
-    justify-self: end;
-  }
-}
-article {
-  grid-area: article;
-  padding-bottom: 12em;
-  caret-color: #8232eb;
-  position: relative;
-  height: 100%;
-  overflow-y: auto;
-}
-footer {
-  grid-area: footer;
-}
-.ai-generated {
-  text-decoration-color: lightcoral;
-  text-decoration-line: underline;
-}
-</style>

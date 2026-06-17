@@ -4,7 +4,7 @@ const Lead = Paragraph.extend({
   name: 'lead',
   content: 'text*',
   parseHTML: () => [{ tag: 'p:first-child' }]
-}).configure({ 
+}).configure({
   HTMLAttributes: {
     class: 'lead'
   }

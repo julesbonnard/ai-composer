@@ -1,4 +1,4 @@
-import { Editor, Extension } from '@tiptap/core'
+import { Extension } from '@tiptap/core'
 import { Node } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view'
@@ -14,24 +14,15 @@ declare module '@tiptap/core' {
 }
 
 export interface AutocompletionOptions {
-  autocompletion: (text: string) => Promise<(() => Promise<Completion>)[]>
+  autocompletion: (text: string, fullText: string) => Promise<(() => Promise<Completion>)[]>
   shorten: (text: string) => Promise<any>
   alternative: (text: string) => Promise<any>
   debounceTimer: number
 }
 
-type Completion = {
-  answer: string
-  context: {
-    content: string
-    id: string
-    name: string
-  }
-}
-
 export interface AutocompletionStorage {
   debouncedGetCompletions: any
-  suggestCompletion: any,
+  suggestCompletion: any
   shorten: (view: EditorView, text: string, from: number, to: number) => Promise<void>
   alternative: (view: EditorView, text: string, from: number, to: number) => Promise<void>
   availableCompletions: (() => Promise<Completion>)[]
@@ -57,14 +48,34 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
   },
 
   addStorage() {
-    const suggestCompletion = async (view: EditorView, node: Node, pos: number, availableCompletions: (() => Promise<Completion>)[], currentCompletionIndex: number) => {
-      const { answer, context } = await availableCompletions[currentCompletionIndex]()
-      const decoration = Decoration.node(pos, pos + node.nodeSize, { class: 'autocompletion', 'data-autocompletion': `${answer} (${context.name})` })
-      view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'add', decoration, availableCompletions, currentCompletionIndex, currentCompletion: { answer, context } }))
+    const suggestCompletion = async (
+      view: EditorView,
+      node: Node,
+      pos: number,
+      availableCompletions: (() => Promise<Completion>)[],
+      currentCompletionIndex: number
+    ) => {
+      if (availableCompletions[currentCompletionIndex] == null) return
+      const result = await availableCompletions[currentCompletionIndex]()
+      const { answer, context } = result
+      const decoration = Decoration.node(pos, pos + node.nodeSize, {
+        class: 'autocompletion',
+        'data-autocompletion': `${answer} (${context.metadata.title})`
+      })
+      view.dispatch(
+        view.state.tr.setMeta(pluginKey, {
+          action: 'add',
+          decoration,
+          availableCompletions,
+          currentCompletionIndex,
+          currentCompletion: { answer, context }
+        })
+      )
     }
 
     const getCompletionsWrapper = async (view: EditorView, node: Node, pos: number) => {
-      const availableCompletions = await this.options.autocompletion(node.textContent)
+      const fullText = view.state.doc.textContent
+      const availableCompletions = await this.options.autocompletion(node.textContent, fullText)
       if (availableCompletions.length == 0) {
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
       }
@@ -72,20 +83,31 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       suggestCompletion(view, node, pos, availableCompletions, 0)
     }
 
-    const shorten = async (view: EditorView, text: string, from: number, to: number) => {
-      const content = await this.options.shorten(text)
+    // Remplace [from, to] par le texte transformé, marqué comme généré par l'IA
+    // (mark `completion`) pour qu'il soit signalé et révisable comme une complétion.
+    const replaceWithCompletion = (
+      view: EditorView,
+      content: string,
+      from: number,
+      to: number,
+      kind: 'shorten' | 'alternative'
+    ) => {
       if (content) {
-        view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(content)))
+        const mark = view.state.schema.marks.completion.create({ 'data-kind': kind })
+        const textNode = view.state.schema.text(content, [mark])
+        view.dispatch(view.state.tr.replaceWith(from, to, textNode))
       }
       view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
     }
 
+    const shorten = async (view: EditorView, text: string, from: number, to: number) => {
+      const content = await this.options.shorten(text)
+      replaceWithCompletion(view, content, from, to, 'shorten')
+    }
+
     const alternative = async (view: EditorView, text: string, from: number, to: number) => {
       const content = await this.options.alternative(text)
-      if (content) {
-        view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(content)))
-      }
-      view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+      replaceWithCompletion(view, content, from, to, 'alternative')
     }
 
     return {
@@ -95,13 +117,22 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       alternative,
       availableCompletions: [],
       currentCompletionIndex: 0,
-      currentCompletion: { answer: '', context: { id: '', name: '', content: '' } },
+      currentCompletion: {
+        answer: '',
+        context: { id: '', pageContent: '', metadata: { name: '' } }
+      },
       setPlaceholder: (view: EditorView, node: Node, pos: number) => {
-        const decoration = Decoration.node(pos, pos + node.nodeSize, { class: 'autocompletion', 'data-autocompletion': '...' })
+        const decoration = Decoration.node(pos, pos + node.nodeSize, {
+          class: 'autocompletion',
+          'data-autocompletion': '...'
+        })
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'add', decoration }))
       },
       setReplacePlaceholder: (view: EditorView, from: number, to: number) => {
-        const decoration = Decoration.inline(from, to, { class: 'autocompletion inline', 'data-autocompletion': '...' })
+        const decoration = Decoration.inline(from, to, {
+          class: 'autocompletion inline',
+          'data-autocompletion': '...'
+        })
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'add', decoration }))
       },
       unsetDecorations: (view: EditorView) => {
@@ -124,9 +155,16 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
             const completion = tr.getMeta(pluginKey)
             if (completion) {
-              const { action, availableCompletions, currentCompletionIndex, currentCompletion, decoration } = completion
+              const {
+                action,
+                availableCompletions,
+                currentCompletionIndex,
+                currentCompletion,
+                decoration
+              } = completion
               if (availableCompletions) this.storage.availableCompletions = availableCompletions
-              if (currentCompletionIndex !== undefined) this.storage.currentCompletionIndex = currentCompletionIndex
+              if (currentCompletionIndex !== undefined)
+                this.storage.currentCompletionIndex = currentCompletionIndex
               if (currentCompletion) this.storage.currentCompletion = currentCompletion
               if (action == 'remove') {
                 set = DecorationSet.empty
@@ -135,14 +173,17 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
               } else if (action == 'reset') {
                 this.storage.availableCompletions = []
                 this.storage.currentCompletionIndex = 0
-                this.storage.currentCompletion = { answer: '', context: { name: '', content: '', id: '' } }
+                this.storage.currentCompletion = {
+                  answer: '',
+                  context: { metadata: { name: '' }, pageContent: '', id: '' }
+                }
               }
             }
             return set
           }
         },
         props: {
-          decorations (state) {
+          decorations(state) {
             return this.getState(state)
           }
         }
@@ -152,9 +193,10 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
   addKeyboardShortcuts() {
     return {
-      'ArrowDown': () => {
+      ArrowDown: () => {
         if (this.storage.availableCompletions.length == 0) return false
-        if (this.storage.currentCompletionIndex >= this.storage.availableCompletions.length - 1) return false
+        if (this.storage.currentCompletionIndex >= this.storage.availableCompletions.length - 1)
+          return false
         this.storage.unsetDecorations(this.editor.view)
         const { anchor } = this.editor.state.selection
         this.editor.state.doc.descendants((node, pos) => {
@@ -163,12 +205,18 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
           if (hasAnchor && !isEmpty) {
             this.storage.setPlaceholder(this.editor.view, node, pos)
-            this.storage.suggestCompletion(this.editor.view, node, pos, this.storage.availableCompletions, this.storage.currentCompletionIndex + 1)
+            this.storage.suggestCompletion(
+              this.editor.view,
+              node,
+              pos,
+              this.storage.availableCompletions,
+              this.storage.currentCompletionIndex + 1
+            )
           }
         })
         return true
       },
-      'ArrowUp': () => {
+      ArrowUp: () => {
         if (this.storage.availableCompletions.length == 0) return false
         if (this.storage.currentCompletionIndex <= 0) return false
         this.storage.unsetDecorations(this.editor.view)
@@ -179,19 +227,27 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
           if (hasAnchor && !isEmpty) {
             this.storage.setPlaceholder(this.editor.view, node, pos)
-            this.storage.suggestCompletion(this.editor.view, node, pos, this.storage.availableCompletions, this.storage.currentCompletionIndex - 1)
+            this.storage.suggestCompletion(
+              this.editor.view,
+              node,
+              pos,
+              this.storage.availableCompletions,
+              this.storage.currentCompletionIndex - 1
+            )
           }
         })
         return true
       },
-      'Escape': () => {
+      Escape: () => {
         this.storage.unsetDecorations(this.editor.view)
         this.storage.debouncedGetCompletions.cancel()
-        this.editor.view.dispatch(this.editor.view.state.tr.setMeta(pluginKey, { action: 'remove' }))
+        this.editor.view.dispatch(
+          this.editor.view.state.tr.setMeta(pluginKey, { action: 'remove' })
+        )
         this.editor.view.dispatch(this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' }))
         return true
       },
-      'Tab': () => {
+      Tab: () => {
         if (this.storage.availableCompletions.length == 0) {
           const { anchor } = this.editor.state.selection
 
@@ -201,13 +257,22 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
             if (hasAnchor && !isEmpty) {
               this.storage.setPlaceholder(this.editor.view, node, pos)
-              this.editor.view.dispatch(this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' }))
+              this.editor.view.dispatch(
+                this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' })
+              )
               this.storage.debouncedGetCompletions(this.editor.view, node, pos)
             }
           })
         } else if (this.storage.currentCompletion.answer) {
-          this.editor.chain().insertContent(`<mark class="completion" data-id="${this.storage.currentCompletion.context.id}" title="${this.storage.currentCompletion.context.name}">${this.storage.currentCompletion.answer}</mark> `).run()
-          this.editor.view.dispatch(this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' }))
+          this.editor
+            .chain()
+            .insertContent(
+              `<mark class="completion" data-kind="source" data-id="${this.storage.currentCompletion.context.id}" data-source="${this.storage.currentCompletion.context.metadata.title}">${this.storage.currentCompletion.answer}</mark> `
+            )
+            .run()
+          this.editor.view.dispatch(
+            this.editor.view.state.tr.setMeta(pluginKey, { action: 'reset' })
+          )
           this.storage.unsetDecorations(this.editor.view)
         }
         return true
@@ -217,22 +282,26 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
 
   addCommands() {
     return {
-      shorten: () => ({ chain }: any) => {
-        const { from, to } = this.editor.state.selection
-        const text = this.editor.state.doc.textBetween(from, to)
+      shorten:
+        () =>
+        ({ chain }: any) => {
+          const { from, to } = this.editor.state.selection
+          const text = this.editor.state.doc.textBetween(from, to)
 
-        this.storage.setReplacePlaceholder(this.editor.view, from, to)
-        this.storage.shorten(this.editor.view, text, from, to)
-        return chain().run()
-      },
-      alternative: () => ({ chain }: any) => {
-        const { from, to } = this.editor.state.selection
-        const text = this.editor.state.doc.textBetween(from, to)
+          this.storage.setReplacePlaceholder(this.editor.view, from, to)
+          this.storage.shorten(this.editor.view, text, from, to)
+          return chain().run()
+        },
+      alternative:
+        () =>
+        ({ chain }: any) => {
+          const { from, to } = this.editor.state.selection
+          const text = this.editor.state.doc.textBetween(from, to)
 
-        this.storage.setReplacePlaceholder(this.editor.view, from, to)
-        this.storage.alternative(this.editor.view, text, from, to)
-        return chain().run()
-      }
+          this.storage.setReplacePlaceholder(this.editor.view, from, to)
+          this.storage.alternative(this.editor.view, text, from, to)
+          return chain().run()
+        }
     }
   },
 

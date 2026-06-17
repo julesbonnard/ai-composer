@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { useSourcesStore } from '@/stores/sources'
+import { useSourcesStore } from '../stores/sources'
 import { useRouter, useRoute } from 'vue-router'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import Document from '@tiptap/extension-document'
@@ -14,13 +14,21 @@ const route = useRoute()
 const sourcesStore = useSourcesStore()
 const { getSourceById, deleteSourceById, addSource } = sourcesStore
 
-const currentSource = computed(() => route.name == 'source' ? getSourceById(route.params.id as string) : { title: 'Untitled source', content: '' })
+const currentSource = computed(() =>
+  route.name == 'source'
+    ? getSourceById(route.params.id as string)
+    : { title: 'Untitled source', content: '' }
+)
 
-function createParagraphs (content: string) {
-  return content.split('\n').filter(d => d !== '').map(d => `<p>${d}</p>`).join('')
+function createParagraphs(content: string) {
+  return content
+    .split('\n')
+    .filter((d) => d !== '')
+    .map((d) => `<p>${d}</p>`)
+    .join('')
 }
 
-watch(currentSource, value => {
+watch(currentSource, (value) => {
   if (value) {
     editor.value?.commands.setContent(`<h1>${value.title}</h1>${createParagraphs(value.content)}`)
   }
@@ -30,7 +38,7 @@ const RecognitionParagraph = Paragraph.extend({
   name: 'recognition-final',
   parseHTML: () => [{ tag: 'p.recognition.final' }],
   HTMLAttributes: {
-    class: 'recognition final',
+    class: 'recognition final'
   }
 })
 
@@ -38,7 +46,7 @@ const editor = useEditor({
   content: `<h1>${currentSource.value?.title || 'Untitled source'}</h1>${createParagraphs(currentSource.value?.content || '')}`,
   extensions: [
     Document.extend({
-      content: 'heading paragraph+',
+      content: 'heading paragraph+'
     }),
     Heading.configure({
       levels: [1]
@@ -62,109 +70,84 @@ const editor = useEditor({
   injectCSS: true
 })
 
-async function deleteSource () {
+async function deleteSource() {
   await deleteSourceById(route.params.id as string)
   router.push({ name: 'home' })
 }
 
-async function save () {
+async function save() {
   const json = (editor.value as any).getJSON()
   const title = json.content.find((d: any) => d.type === 'heading').content[0].text
   const paragraphs = json.content.filter((d: any) => d.type === 'paragraph' && d.content)
   const content = paragraphs.map((d: any) => d.content[0].text).join('\n')
-  
+
   if (route.name === 'source') {
     await deleteSourceById(route.params.id as string)
   }
-  const doc = await addSource(content, title)
+  const { id } = await addSource(content, title)
 
   if (route.name === 'new-source') {
-    router.push({ name: 'source', params: { id: doc.id } })
+    router.push({ name: 'source', params: { id } })
   }
 }
-
 </script>
 
 <template>
-  <div id="source-editor">
-    <div id="actions">
-      <button @click="save">Save</button>
-      <button v-if="route.name == 'source'" @click="deleteSource">Delete</button>
-      <RouterLink :to="{ name: 'home' }">Close</RouterLink>
-    </div>
-    <editor-content id="source" :editor="editor" />
+  <div class="source-editor bg-base-100 border-r border-base-300 overflow-y-auto">
+    <header
+      class="sticky top-0 z-10 flex items-center gap-2 px-6 h-14 border-b border-base-300 bg-base-100/90 backdrop-blur"
+    >
+      <span class="icon-[tabler--file-text] size-5 text-primary"></span>
+      <h2 class="text-base font-semibold tracking-tight">Source</h2>
+      <div class="ml-auto flex items-center gap-1">
+        <button @click="save" class="btn btn-primary btn-sm">
+          <span class="icon-[tabler--device-floppy] size-4"></span> Save
+        </button>
+        <button
+          v-if="route.name === 'source'"
+          @click="deleteSource"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Delete source"
+        >
+          <span class="icon-[tabler--trash] size-4"></span>
+        </button>
+        <RouterLink
+          :to="{ name: 'home' }"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Close"
+        >
+          <span class="icon-[tabler--x] size-4"></span>
+        </RouterLink>
+      </div>
+    </header>
+
+    <editor-content :editor="editor" />
   </div>
 </template>
 
-<style lang="scss" scoped>
-  #source-editor {
-    background-color: #fff;
-    box-shadow: 10px 0px 15px -3px rgba(0,0,0,0.1);
-    height: 100%;
-    overflow-y: auto;
-    grid-area: source;
-    position: relative;
-    #actions {
-      position: sticky;
-      top: 0px;
-      float: right;
-      padding-right: 8px;
-      background-color: white;
-      z-index: 101;
-      button, a {
-        background-color: #8232eb; /* Green */
-        border: none;
-        color: white;
-        padding: 8px 12px;
-        margin: 0px 6px 0px 6px;
-        font-size: 12px;
-        text-align: center;
-        text-decoration: none;
-        cursor: pointer;
-        &:hover {
-          background-color: rgba(#8232eb, 0.9);
-        }
-      }
-    }
-  }
-</style>
+<style>
+@reference "../assets/main.css";
 
-<style lang="scss">
-  #source-editor {
-    .ProseMirror {
-      padding: 2rem;
-      white-space: break-spaces;
-      word-break: break-word;
-      overflow-wrap: anywhere;
+/* Éditeur de SOURCES : volontairement distinct de l'article — sans-serif,
+   compact, allure « notes / référence » plutôt que mise en page éditoriale. */
+.source-editor .ProseMirror {
+  @apply font-sans text-sm/relaxed text-base-content/90 px-6 py-5 whitespace-break-spaces wrap-break-word break-normal;
+}
 
-      &:focus {
-        outline: 0px solid transparent;
-      }
+.source-editor .ProseMirror:focus {
+  @apply outline-none;
+}
 
-      h1 {
-        font-size: 1.2rem;
-        line-height: 1.4rem;
-        margin-bottom: 1rem;
-      }
-      p {
-        margin-top: 0.2em;
-        font-size: 0.9rem;
-        &.recognition {
-          font-style: italic;
-          color: grey;
-        }
-        &.recognition.final {
-          font-size: italic;
-        }
-      }
-    }
-      /* Placeholder (on every new line) */
-    .ProseMirror .is-empty::before {
-      content: attr(data-placeholder);
-      float: left;
-      color: #bbb;
-      pointer-events: none;
-      height: 0;
-    }
-  }
+.source-editor .ProseMirror > * + * {
+  @apply mt-2;
+}
+
+.source-editor .ProseMirror h1 {
+  @apply font-sans text-lg font-semibold tracking-tight text-base-content mb-3;
+}
+
+.source-editor .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  @apply float-left text-base-content/30 pointer-events-none h-0;
+}
 </style>

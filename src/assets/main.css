@@ -1,40 +1,99 @@
-@import './base.css';
+@import 'tailwindcss';
+@plugin "@tailwindcss/typography";
+@plugin "daisyui";
+@plugin "@iconify/tailwind4";
 
-html, body {
-  height: 100%;
-  overscroll-behavior-y: none;
+/* Familles de polices (auto-hébergées, importées dans main.ts).
+   Inter pour l'UI, Newsreader pour le corps de l'article. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Newsreader Variable', ui-serif, Georgia, 'Times New Roman', serif;
 }
 
-#app {
-  /* max-width: 1280px; */
-  margin: 0 auto;
-  /* padding: 2rem; */
-  height: 100%;
-  font-weight: normal;
+/* ── Thème clair « éditorial papier » ───────────────────────────────────────
+   Canvas chaud type papier, encre sombre légèrement violette, magenta en
+   couleur signature de l'IA. Coins doux, profondeur subtile. */
+@plugin "daisyui/theme" {
+  name: 'aicomposer';
+  default: true;
+  prefersdark: false;
+  color-scheme: 'light';
+  --color-base-100: oklch(98.5% 0.004 75);
+  --color-base-200: oklch(96.5% 0.006 75);
+  --color-base-300: oklch(92% 0.008 70);
+  --color-base-content: oklch(25% 0.025 305);
+  --color-primary: oklch(55% 0.24 332);
+  --color-primary-content: oklch(99% 0 0);
+  --color-secondary: oklch(46% 0.16 290);
+  --color-secondary-content: oklch(99% 0 0);
+  --color-accent: oklch(80% 0.13 70);
+  --color-accent-content: oklch(28% 0.05 70);
+  --color-neutral: oklch(32% 0.02 305);
+  --color-neutral-content: oklch(96% 0.005 75);
+  --color-info: oklch(60% 0.12 235);
+  --color-info-content: oklch(98% 0.01 235);
+  --color-success: oklch(60% 0.14 150);
+  --color-success-content: oklch(98% 0.02 150);
+  --color-warning: oklch(75% 0.16 70);
+  --color-warning-content: oklch(28% 0.05 70);
+  --color-error: oklch(58% 0.21 18);
+  --color-error-content: oklch(98% 0.01 18);
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.875rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
-/* a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
+/* ── Thème sombre « éditorial nuit » ─────────────────────────────────────────
+   S'active automatiquement si l'OS préfère le sombre (prefersdark), ou via la
+   bascule manuelle (data-theme="aicomposer-dark" sur <html>). */
+@plugin "daisyui/theme" {
+  name: 'aicomposer-dark';
+  default: false;
+  prefersdark: true;
+  color-scheme: 'dark';
+  --color-base-100: oklch(21% 0.018 305);
+  --color-base-200: oklch(25% 0.02 305);
+  --color-base-300: oklch(31% 0.022 305);
+  --color-base-content: oklch(91% 0.01 75);
+  --color-primary: oklch(72% 0.18 332);
+  --color-primary-content: oklch(18% 0.03 332);
+  --color-secondary: oklch(70% 0.13 290);
+  --color-secondary-content: oklch(18% 0.03 290);
+  --color-accent: oklch(80% 0.13 70);
+  --color-accent-content: oklch(25% 0.05 70);
+  --color-neutral: oklch(30% 0.02 305);
+  --color-neutral-content: oklch(92% 0.01 75);
+  --color-info: oklch(70% 0.12 235);
+  --color-info-content: oklch(18% 0.03 235);
+  --color-success: oklch(72% 0.14 150);
+  --color-success-content: oklch(18% 0.03 150);
+  --color-warning: oklch(78% 0.15 70);
+  --color-warning-content: oklch(25% 0.05 70);
+  --color-error: oklch(68% 0.19 18);
+  --color-error-content: oklch(18% 0.03 18);
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.875rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+/* Rendu de texte plus net + sélection à la couleur signature. */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-} */
 
-@media (min-width: 1024px) {
-  /* body {
-    display: flex;
-    place-items: center;
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
   }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  } */
 }
