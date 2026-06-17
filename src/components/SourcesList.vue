@@ -23,21 +23,33 @@ const handleCheckboxChange = (sourceId: string) => {
     <li
       v-for="(source, i) in sources"
       :key="i"
-      class="px-3 py-1 text-sm leading-4 transition-colors duration-150 flex items-center gap-2"
-      :class="{ 'bg-indigo-50': isActive(source.id) }"
+      class="group flex items-center gap-2.5 px-4 py-1.5 text-sm leading-snug border-l-2 transition-colors duration-150"
+      :class="
+        isActive(source.id)
+          ? 'border-primary bg-primary/8'
+          : 'border-transparent hover:bg-base-100'
+      "
     >
       <input
         type="checkbox"
         :checked="source.active"
         @change="handleCheckboxChange(source.id)"
-        class="checkbox checkbox-sm checkbox-primary"
-        :title="source.active ? 'Désactiver cette source' : 'Activer cette source'"
+        class="checkbox checkbox-xs checkbox-primary"
+        :title="source.active ? 'Disable this source' : 'Enable this source'"
       />
       <router-link
         :to="{ name: 'source', params: { id: source.id } }"
-        class="no-underline text-purple-700 hover:underline flex-1 cursor-pointer"
+        class="flex-1 cursor-pointer no-underline transition-colors"
+        :class="
+          source.active
+            ? 'text-base-content group-hover:text-primary'
+            : 'text-base-content/40 group-hover:text-primary'
+        "
       >
-        <span v-if="source.embeddings == false" class="loading loading-spinner loading-sm"></span>
+        <span
+          v-if="source.embeddings == false"
+          class="loading loading-spinner loading-xs align-middle"
+        ></span>
         {{ source.title }}
       </router-link>
     </li>

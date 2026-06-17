@@ -4,6 +4,7 @@ import SourcesDragDrop from '../components/SourcesDragDrop.vue'
 import SourcesManualAdd from '../components/SourcesManualAdd.vue'
 import SourcesAskNews from '../components/SourcesAskNews.vue'
 import SourcesList from '../components/SourcesList.vue'
+import ThemeToggle from '../components/ThemeToggle.vue'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
@@ -49,42 +50,52 @@ async function reset() {
 </script>
 
 <template>
-  <aside class="shadow-md flex flex-col min-w-95 relative">    
-    <!-- <RouterLink id="get-started" class="btn btn-lg btn-primary" :to="{ name: 'get-started' }">
-      Get started
-    </RouterLink> -->
-    <RouterLink id="get-started" class="btn btn-lg btn-secondary" :to="{ name: 'settings' }">
-      Settings
-    </RouterLink>
-    
-    <div class="mt-8 mx-3 mb-3 space-y-4">
-      <SourcesDragDrop />
-      <SourcesManualAdd />
-      <SourcesAskNews />
-    </div>
-    
-    <SourcesList />
-    <button class="btn btn-soft mt-auto" @click="clipboard">Copy to clipboard</button>
-    <div role="alert" class="alert alert-warning">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-6 w-6 shrink-0 stroke-current"
-        fill="none"
-        viewBox="0 0 24 24"
+  <aside class="bg-base-200 border-r border-base-300 flex flex-col min-w-95 relative">
+    <header class="flex items-center gap-2 px-4 h-14 border-b border-base-300 shrink-0">
+      <span class="icon-[tabler--feather] size-5 text-primary"></span>
+      <span class="font-semibold tracking-tight">AI Composer</span>
+      <div class="ml-auto flex items-center gap-1">
+        <ThemeToggle />
+        <RouterLink
+          id="get-started"
+          :to="{ name: 'settings' }"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Settings"
+        >
+          <span class="icon-[tabler--settings] size-4"></span>
+        </RouterLink>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto">
+      <div class="p-3 space-y-3">
+        <SourcesDragDrop />
+        <SourcesManualAdd />
+        <SourcesAskNews />
+      </div>
+
+      <div
+        class="px-4 pt-3 pb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-base-content/50"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-      <span
-        >Keep in mind that artificial intelligence is prone to making a lot of mistakes, so use it
-        at your own risk and be vigilant.</span
-      >
+        <span class="icon-[tabler--books] size-3.5"></span> Sources
+      </div>
+      <SourcesList />
     </div>
-    <button class="btn btn-soft" @click="reset">Reset</button>
+
+    <footer class="border-t border-base-300 p-3 space-y-2 shrink-0">
+      <p class="flex gap-2 text-xs leading-snug text-base-content/60">
+        <span class="icon-[tabler--alert-triangle] size-4 shrink-0 text-warning mt-px"></span>
+        AI is prone to mistakes — use it at your own risk and stay vigilant.
+      </p>
+      <div class="join w-full">
+        <button class="btn btn-sm btn-soft join-item flex-1" @click="clipboard">
+          <span class="icon-[tabler--clipboard] size-4"></span> Copy
+        </button>
+        <button class="btn btn-sm btn-soft join-item flex-1" @click="reset">
+          <span class="icon-[tabler--refresh] size-4"></span> Reset
+        </button>
+      </div>
+    </footer>
   </aside>
 
   <RouterView class="col-start-2 row-start-1" />

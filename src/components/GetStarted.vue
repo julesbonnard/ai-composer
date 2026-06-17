@@ -3,7 +3,7 @@ import { RouterLink } from 'vue-router'
 </script>
 
 <template>
-  <div class="bg-white shadow-sm overflow-y-auto">
+  <div class="bg-base-100 border-r border-base-300 overflow-y-auto">
     <div class="sticky top-0 right-2 z-101 float-right">
       <RouterLink :to="{ name: 'home' }" class="btn btn-neutral btn-xs">Close</RouterLink>
     </div>

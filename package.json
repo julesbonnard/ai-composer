@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@emergentmethods/asknews-typescript-sdk": "^0.4.19",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/newsreader": "^5.2.10",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/hub": "^2.13.1",
     "@huggingface/inference": "^4.13.19",

@@ -3,37 +3,97 @@
 @plugin "daisyui";
 @plugin "@iconify/tailwind4";
 
+/* Familles de polices (auto-hébergées, importées dans main.ts).
+   Inter pour l'UI, Newsreader pour le corps de l'article. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Newsreader Variable', ui-serif, Georgia, 'Times New Roman', serif;
+}
+
+/* ── Thème clair « éditorial papier » ───────────────────────────────────────
+   Canvas chaud type papier, encre sombre légèrement violette, magenta en
+   couleur signature de l'IA. Coins doux, profondeur subtile. */
 @plugin "daisyui/theme" {
   name: 'aicomposer';
   default: true;
   prefersdark: false;
   color-scheme: 'light';
-  --color-base-100: oklch(97% 0.017 320.058);
-  --color-base-200: oklch(95% 0.037 318.852);
-  --color-base-300: oklch(90% 0.076 319.62);
-  --color-base-content: oklch(21% 0.034 264.665);
-  --color-primary: oklch(51% 0.253 323.949);
-  --color-primary-content: oklch(100% 0 0);
-  --color-secondary: oklch(39% 0.195 277.366);
-  --color-secondary-content: oklch(100% 0 0);
-  --color-accent: oklch(85% 0.199 91.936);
-  --color-accent-content: oklch(26% 0.051 172.552);
-  --color-neutral: oklch(44% 0.03 256.802);
-  --color-neutral-content: oklch(98% 0.002 247.839);
-  --color-info: oklch(45% 0.085 224.283);
-  --color-info-content: oklch(98% 0.019 200.873);
-  --color-success: oklch(45% 0.124 130.933);
-  --color-success-content: oklch(98% 0.031 120.757);
-  --color-warning: oklch(64% 0.222 41.116);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(45% 0.188 13.697);
-  --color-error-content: oklch(97% 0.014 343.198);
+  --color-base-100: oklch(98.5% 0.004 75);
+  --color-base-200: oklch(96.5% 0.006 75);
+  --color-base-300: oklch(92% 0.008 70);
+  --color-base-content: oklch(25% 0.025 305);
+  --color-primary: oklch(55% 0.24 332);
+  --color-primary-content: oklch(99% 0 0);
+  --color-secondary: oklch(46% 0.16 290);
+  --color-secondary-content: oklch(99% 0 0);
+  --color-accent: oklch(80% 0.13 70);
+  --color-accent-content: oklch(28% 0.05 70);
+  --color-neutral: oklch(32% 0.02 305);
+  --color-neutral-content: oklch(96% 0.005 75);
+  --color-info: oklch(60% 0.12 235);
+  --color-info-content: oklch(98% 0.01 235);
+  --color-success: oklch(60% 0.14 150);
+  --color-success-content: oklch(98% 0.02 150);
+  --color-warning: oklch(75% 0.16 70);
+  --color-warning-content: oklch(28% 0.05 70);
+  --color-error: oklch(58% 0.21 18);
+  --color-error-content: oklch(98% 0.01 18);
   --radius-selector: 1rem;
-  --radius-field: 0rem;
-  --radius-box: 0rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.875rem;
   --size-selector: 0.25rem;
-  --size-field: 0.28125rem;
-  --border: 0.5px;
-  --depth: 0;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
   --noise: 0;
+}
+
+/* ── Thème sombre « éditorial nuit » ─────────────────────────────────────────
+   S'active automatiquement si l'OS préfère le sombre (prefersdark), ou via la
+   bascule manuelle (data-theme="aicomposer-dark" sur <html>). */
+@plugin "daisyui/theme" {
+  name: 'aicomposer-dark';
+  default: false;
+  prefersdark: true;
+  color-scheme: 'dark';
+  --color-base-100: oklch(21% 0.018 305);
+  --color-base-200: oklch(25% 0.02 305);
+  --color-base-300: oklch(31% 0.022 305);
+  --color-base-content: oklch(91% 0.01 75);
+  --color-primary: oklch(72% 0.18 332);
+  --color-primary-content: oklch(18% 0.03 332);
+  --color-secondary: oklch(70% 0.13 290);
+  --color-secondary-content: oklch(18% 0.03 290);
+  --color-accent: oklch(80% 0.13 70);
+  --color-accent-content: oklch(25% 0.05 70);
+  --color-neutral: oklch(30% 0.02 305);
+  --color-neutral-content: oklch(92% 0.01 75);
+  --color-info: oklch(70% 0.12 235);
+  --color-info-content: oklch(18% 0.03 235);
+  --color-success: oklch(72% 0.14 150);
+  --color-success-content: oklch(18% 0.03 150);
+  --color-warning: oklch(78% 0.15 70);
+  --color-warning-content: oklch(25% 0.05 70);
+  --color-error: oklch(68% 0.19 18);
+  --color-error-content: oklch(18% 0.03 18);
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.875rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Rendu de texte plus net + sélection à la couleur signature. */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  }
 }

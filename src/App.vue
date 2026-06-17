@@ -3,6 +3,10 @@ import { Analytics } from '@vercel/analytics/vue'
 import { computed } from 'vue'
 import { useRoute, RouterView } from 'vue-router'
 import LocalModelLoader from './components/LocalModelLoader.vue'
+import { useTheme } from './composables/useTheme'
+
+// Active l'application de la préférence de thème dès le chargement (toutes routes).
+useTheme()
 
 const route = useRoute()
 

@@ -63,29 +63,32 @@ const { getRootProps, getInputProps, isDragAccept } = useDropzone({
 <template>
   <div
     v-bind="getRootProps()"
-    class="p-6 bg-primary text-primary-content rounded-lg cursor-pointer hover:bg-primary-focus transition-colors"
+    class="flex flex-col items-center gap-2 p-6 rounded-box border-2 border-dashed cursor-pointer transition-colors"
+    :class="
+      isDragAccept
+        ? 'border-primary bg-primary/10 text-primary'
+        : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:bg-base-100'
+    "
   >
     <input v-bind="getInputProps()" />
-    <div class="flex flex-col items-center gap-2">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-        />
-      </svg>
-      <p v-if="isDragAccept" class="text-center font-semibold">Drag a PDF here...</p>
-      <p v-else class="text-center">
-        <span class="font-semibold">Drop a PDF</span><br />
-        <span class="text-sm opacity-90">Study, report, press release...</span>
-      </p>
-    </div>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-7 w-7 text-primary/70"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+      />
+    </svg>
+    <p v-if="isDragAccept" class="text-center font-semibold">Drop the PDF here…</p>
+    <p v-else class="text-center">
+      <span class="font-semibold text-base-content">Drop a PDF</span><br />
+      <span class="text-sm">Study, report, press release…</span>
+    </p>
   </div>
 </template>

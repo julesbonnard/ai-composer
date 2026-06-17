@@ -9,29 +9,27 @@ function newSource() {
 </script>
 
 <template>
-  <div
+  <button
+    type="button"
     @click="newSource"
-    class="p-6 bg-primary text-primary-content rounded-lg cursor-pointer hover:bg-primary-focus transition-colors"
+    class="flex w-full items-center gap-3 p-4 rounded-box border border-base-300 bg-base-100 text-left cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5"
   >
-    <div class="flex flex-col items-center gap-2">
+    <span
+      class="flex size-9 shrink-0 items-center justify-center rounded-field bg-primary/10 text-primary"
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        class="h-8 w-8"
+        class="h-5 w-5"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 4v16m8-8H4"
-        />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
-      <p class="text-center">
-        <span class="font-semibold">Manually add a new source</span><br />
-        <span class="text-sm opacity-90">Notes, interview transcript...</span>
-      </p>
-    </div>
-  </div>
+    </span>
+    <span>
+      <span class="block font-semibold">Add a source manually</span>
+      <span class="block text-sm text-base-content/60">Notes, interview transcript…</span>
+    </span>
+  </button>
 </template>

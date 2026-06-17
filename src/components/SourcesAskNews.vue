@@ -53,8 +53,10 @@ async function addNewsAsSource(article: SearchResponseDictItem) {
 </script>
 
 <template>
-  <div class="p-4 bg-base-200 rounded-lg">
-    <h3 class="text-lg font-semibold mb-3">Fetch context from news</h3>
+  <div class="p-4 bg-base-100 border border-base-300 rounded-box">
+    <h3 class="text-sm font-semibold mb-3 flex items-center gap-1.5">
+      <span class="icon-[tabler--news] size-4 text-primary"></span> Fetch context from news
+    </h3>
     <form @submit.prevent="handleSearch" class="space-y-3">
       <div class="form-control">
         <div class="join w-full">
@@ -112,11 +114,11 @@ async function addNewsAsSource(article: SearchResponseDictItem) {
         <div
           v-for="(article, index) in searchResults"
           :key="index"
-          class="card bg-base-100 shadow-sm"
+          class="card bg-base-200 border border-base-300"
         >
           <div class="card-body p-3">
             <h4 class="card-title text-sm">
-              {{ article.title || article.headline || 'Sans titre' }}
+              {{ article.title || article.headline || 'Untitled' }}
             </h4>
             <p v-if="article.summary" class="text-xs opacity-70 line-clamp-2">
               {{ article.summary }}
