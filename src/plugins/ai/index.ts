@@ -3,7 +3,13 @@
 import { similaritySearch } from './vectorStore'
 
 export type { Doc } from './vectorStore'
-export { addDocuments, similaritySearch } from './vectorStore'
+export {
+  addDocuments,
+  similaritySearch,
+  presentSourceIds,
+  removeDocuments,
+  clearChunks
+} from './vectorStore'
 export { autocompleteText, shortenText, alternativeText } from './completion'
 export { llmSelection, embeddingsSelection } from './selection'
 

@@ -1,4 +1,6 @@
 import { embed } from './engine'
+import { embeddingsSelection } from './selection'
+import { idbGet, idbSet, idbDel, CHUNKS_KEY } from './persistence'
 
 // Document léger, structurellement compatible avec l'ancien Document LangChain
 // (pageContent + metadata + id) consommé par Autocompletion.ts.
@@ -13,8 +15,27 @@ interface StoredChunk {
   doc: Doc
 }
 
-// Vector store en mémoire (non persisté). Cf. ROADMAP phase D pour la persistance.
-const chunks: StoredChunk[] = []
+// Vector store en mémoire, PERSISTÉ dans IndexedDB. La clé inclut le modèle
+// d'embeddings courant : changer de modèle (dimensions différentes) repart d'un
+// store vide → les sources sont ré-embeddées (cf. stores/sources.ts).
+let chunks: StoredChunk[] = []
+const storeKey = CHUNKS_KEY(embeddingsSelection.model)
+
+// Hydratation paresseuse (une seule fois) depuis IndexedDB.
+let hydration: Promise<void> | null = null
+function ensureHydrated(): Promise<void> {
+  if (!hydration) {
+    hydration = (async () => {
+      const saved = await idbGet<StoredChunk[]>(storeKey)
+      if (saved && saved.length) chunks = saved
+    })()
+  }
+  return hydration
+}
+
+function persist(): Promise<void> {
+  return idbSet(storeKey, chunks)
+}
 
 // Découpage récursif simple (équivalent RecursiveCharacterTextSplitter : 1000/200).
 function splitText(text: string, size = 1000, overlap = 200): string[] {
@@ -42,6 +63,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 export async function addDocuments(docs: Doc[]): Promise<void> {
+  await ensureHydrated()
   const pieces = docs.flatMap((doc) =>
     splitText(doc.pageContent).map((content) => ({
       content,
@@ -62,12 +84,14 @@ export async function addDocuments(docs: Doc[]): Promise<void> {
       }
     })
   })
+  await persist()
 }
 
 // Recherche par similarité cosinus, puis dédoublonnage par source pour proposer
 // une complétion issue de sources distinctes (intention produit : « une complétion
 // par source »).
 export async function similaritySearch(query: string, k = 4): Promise<Doc[]> {
+  await ensureHydrated()
   if (chunks.length === 0) return []
 
   const [embedding] = await embed([query])
@@ -85,4 +109,23 @@ export async function similaritySearch(query: string, k = 4): Promise<Doc[]> {
     if (results.length >= k) break
   }
   return results
+}
+
+// Identifiants de sources déjà vectorisées (pour la réconciliation au chargement).
+export async function presentSourceIds(): Promise<Set<string>> {
+  await ensureHydrated()
+  return new Set(chunks.map((c) => c.doc.metadata.id))
+}
+
+// Retire les vecteurs d'une source supprimée.
+export async function removeDocuments(sourceId: string): Promise<void> {
+  await ensureHydrated()
+  chunks = chunks.filter((c) => c.doc.metadata.id !== sourceId)
+  await persist()
+}
+
+// Vide tout le store (reset).
+export async function clearChunks(): Promise<void> {
+  chunks = []
+  await idbDel(storeKey)
 }
