@@ -11,6 +11,7 @@ export {
   clearChunks
 } from './vectorStore'
 export { autocompleteText, shortenText, alternativeText } from './completion'
+export { abortGeneration } from './engine'
 export { llmSelection, embeddingsSelection } from './selection'
 
 export async function searchContext(text: string) {

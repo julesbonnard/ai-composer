@@ -42,23 +42,39 @@ function isLocal(provider: string): boolean {
   return Boolean((modelsConfig as Record<string, { local?: boolean }>)[provider]?.local)
 }
 
+// Annulation : Échap (cf. Autocompletion.ts) appelle abortGeneration(), qui coupe
+// toutes les générations en cours — réseau (fetch) comme calcul navigateur (worker
+// transformers, interruptGenerate MLC). Les embeddings ne sont pas annulés (rapides
+// et parfois liés à une vectorisation de source en arrière-plan).
+const activeControllers = new Set<AbortController>()
+
+export function abortGeneration() {
+  for (const controller of activeControllers) controller.abort()
+  activeControllers.clear()
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
 // Dispatch génération par provider. Chaque moteur renvoie { text, usage }.
 function dispatchComplete(
   provider: string,
   task: Task,
   text: string,
   context: string | undefined,
-  model: string
+  model: string,
+  signal: AbortSignal
 ): Promise<CompleteResult> {
   switch (provider) {
     case 'gateway':
-      return remoteComplete(task, text, context, model)
+      return remoteComplete(task, text, context, model, signal)
     case 'transformers':
-      return localComplete(task, text, context, model)
+      return localComplete(task, text, context, model, signal)
     case 'webLLM':
-      return webllmComplete(task, text, context, model)
+      return webllmComplete(task, text, context, model, signal)
     case 'taskgenai':
-      return taskgenaiComplete(task, text, context, model)
+      return taskgenaiComplete(task, text, context, model, signal)
     default:
       return Promise.reject(new Error(`Provider de génération non câblé : ${provider}`))
   }
@@ -85,6 +101,8 @@ function dispatchEmbed(provider: string, texts: string[], model: string): Promis
 export async function complete(task: Task, text: string, context?: string): Promise<string> {
   const provider = llmSelection.provider
   const local = isLocal(provider)
+  const controller = new AbortController()
+  activeControllers.add(controller)
   startActivity(local ? 'local' : 'cloud', llmSelection.model, task)
   try {
     const { text: output, usage } = await dispatchComplete(
@@ -92,14 +110,20 @@ export async function complete(task: Task, text: string, context?: string): Prom
       task,
       text,
       context,
-      llmSelection.model
+      llmSelection.model,
+      controller.signal
     )
     endActivity(usage)
     return output
   } catch (error) {
     endActivity()
-    reportAiError(error, local ? 'local' : 'cloud', llmSelection.model)
+    // Annulation volontaire (Échap) : ni toast ni bruit, on relaie juste le rejet.
+    if (!controller.signal.aborted && !isAbort(error)) {
+      reportAiError(error, local ? 'local' : 'cloud', llmSelection.model)
+    }
     throw error
+  } finally {
+    activeControllers.delete(controller)
   }
 }
 

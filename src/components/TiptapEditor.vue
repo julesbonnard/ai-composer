@@ -4,6 +4,7 @@ const props = defineProps<{
   autocompletion: (text: string, fullText: string) => Promise<any>
   shorten: (text: string) => Promise<string>
   alternative: (text: string) => Promise<string>
+  cancel: () => void
 }>()
 
 const emits = defineEmits(['update:modelValue'])
@@ -42,7 +43,8 @@ const editor = useEditor({
     Autocompletion.configure({
       autocompletion: props.autocompletion,
       shorten: props.shorten,
-      alternative: props.alternative
+      alternative: props.alternative,
+      cancel: props.cancel
     }),
     Completion,
     Limit.configure({

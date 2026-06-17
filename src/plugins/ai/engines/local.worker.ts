@@ -1,4 +1,9 @@
-import { pipeline, env, type PipelineType } from '@huggingface/transformers'
+import {
+  pipeline,
+  env,
+  InterruptableStoppingCriteria,
+  type PipelineType
+} from '@huggingface/transformers'
 
 // Modèles locaux exécutés 100% dans le navigateur (transformers.js). Les sources
 // ne quittent jamais le poste. WebGPU si disponible, repli WASM.
@@ -6,15 +11,18 @@ env.allowLocalModels = false
 
 const device: 'webgpu' | 'wasm' = 'gpu' in navigator ? 'webgpu' : 'wasm'
 
-type Kind = 'embed' | 'generate'
+type Kind = 'embed' | 'generate' | 'interrupt'
 
 interface WorkerRequest {
   id: number
   kind: Kind
-  model: string
+  model?: string
   texts?: string[]
   prompt?: string
 }
+
+// Critères d'arrêt par requête, pour interrompre une génération (Échap côté UI).
+const stoppers = new Map<number, InterruptableStoppingCriteria>()
 
 // Cache des pipelines par (tâche, modèle).
 const pipelines = new Map<string, Promise<any>>()
@@ -61,14 +69,23 @@ async function embed(
 }
 
 async function generate(
+  id: number,
   model: string,
   prompt: string
 ): Promise<{ text: string; usage: TokenUsage }> {
   const generator = await getPipeline('text-generation', model)
-  const output = await generator([{ role: 'user', content: prompt }], {
-    max_new_tokens: 256,
-    do_sample: false
-  })
+  const stopper = new InterruptableStoppingCriteria()
+  stoppers.set(id, stopper)
+  let output: any
+  try {
+    output = await generator([{ role: 'user', content: prompt }], {
+      max_new_tokens: 256,
+      do_sample: false,
+      stopping_criteria: stopper
+    })
+  } finally {
+    stoppers.delete(id)
+  }
   const generated = output[0]?.generated_text
   let text: string
   // Modèle de chat : generated_text est la liste de messages → on prend la réponse.
@@ -92,11 +109,18 @@ async function generate(
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { id, kind, model, texts, prompt } = event.data
+
+  // Interruption d'une génération en cours : on déclenche le stopping criteria.
+  if (kind === 'interrupt') {
+    stoppers.get(id)?.interrupt()
+    return
+  }
+
   try {
     const result =
       kind === 'embed'
-        ? await embed(model, texts ?? [])
-        : await generate(model, prompt ?? '')
+        ? await embed(model ?? '', texts ?? [])
+        : await generate(id, model ?? '', prompt ?? '')
     self.postMessage({ id, result })
   } catch (error) {
     self.postMessage({ id, error: error instanceof Error ? error.message : String(error) })

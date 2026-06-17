@@ -56,11 +56,16 @@ export async function taskgenaiComplete(
   task: Task,
   text: string,
   context: string | undefined,
-  model: string
+  model: string,
+  signal?: AbortSignal
 ): Promise<{ text: string; usage?: TokenUsage }> {
   const llm = await getInstance(model)
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
   const prompt = toGemmaPrompt(buildPrompt(task, text, context))
   const output = await llm.generateResponse(prompt)
+  // MediaPipe n'expose pas d'interruption en cours de génération : best-effort,
+  // on jette le résultat si l'utilisateur a annulé entre-temps.
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
   let usage: TokenUsage | undefined
   try {

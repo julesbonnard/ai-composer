@@ -8,7 +8,7 @@ import ThemeToggle from '../components/ThemeToggle.vue'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { searchContext, autocompleteText, shortenText, alternativeText } from '../plugins/ai'
+import { searchContext, autocompleteText, shortenText, alternativeText, abortGeneration } from '../plugins/ai'
 import type { Doc } from '../plugins/ai'
 import { toastInfo } from '../composables/useToasts'
 
@@ -109,6 +109,7 @@ async function reset() {
       :autocompletion="autocompletion"
       :shorten="shorten"
       :alternative="alternative"
+      :cancel="abortGeneration"
     />
   </article>
 </template>

@@ -36,15 +36,37 @@ function getWorker(): Worker {
   return worker
 }
 
-function call<T>(message: {
-  kind: 'embed' | 'generate'
-  model: string
-  texts?: string[]
-  prompt?: string
-}): Promise<T> {
+function call<T>(
+  message: {
+    kind: 'embed' | 'generate'
+    model: string
+    texts?: string[]
+    prompt?: string
+  },
+  signal?: AbortSignal
+): Promise<T> {
   const id = nextId++
   return new Promise<T>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
     pending.set(id, { resolve, reject })
+    // Annulation : on demande au worker d'interrompre la génération (stopping
+    // criteria) et on rejette tout de suite côté principal ; le résultat tardif
+    // éventuel sera ignoré (id absent de `pending`).
+    signal?.addEventListener(
+      'abort',
+      () => {
+        const entry = pending.get(id)
+        if (entry) {
+          pending.delete(id)
+          getWorker().postMessage({ id, kind: 'interrupt' })
+          entry.reject(new DOMException('Aborted', 'AbortError'))
+        }
+      },
+      { once: true }
+    )
     getWorker().postMessage({ id, ...message })
   })
 }
@@ -53,13 +75,17 @@ export function localComplete(
   task: Task,
   text: string,
   context: string | undefined,
-  model: string
+  model: string,
+  signal?: AbortSignal
 ): Promise<{ text: string; usage?: TokenUsage }> {
-  return call<{ text: string; usage?: TokenUsage }>({
-    kind: 'generate',
-    model,
-    prompt: buildPrompt(task, text, context)
-  })
+  return call<{ text: string; usage?: TokenUsage }>(
+    {
+      kind: 'generate',
+      model,
+      prompt: buildPrompt(task, text, context)
+    },
+    signal
+  )
 }
 
 export function localEmbed(

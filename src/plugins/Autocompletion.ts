@@ -17,6 +17,7 @@ export interface AutocompletionOptions {
   autocompletion: (text: string, fullText: string) => Promise<(() => Promise<Completion>)[]>
   shorten: (text: string) => Promise<any>
   alternative: (text: string) => Promise<any>
+  cancel: () => void
   debounceTimer: number
 }
 
@@ -43,6 +44,7 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       autocompletion: () => Promise.resolve([]),
       shorten: () => Promise.resolve(''),
       alternative: () => Promise.resolve(''),
+      cancel: () => {},
       debounceTimer: 100
     }
   },
@@ -263,6 +265,8 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
         return true
       },
       Escape: () => {
+        // Coupe la requête en cours (réseau ou calcul navigateur), pas seulement l'affichage.
+        this.options.cancel()
         this.storage.unsetDecorations(this.editor.view)
         this.storage.debouncedGetCompletions.cancel()
         this.editor.view.dispatch(

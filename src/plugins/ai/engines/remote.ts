@@ -10,12 +10,14 @@ export async function remoteComplete(
   task: Task,
   text: string,
   context: string | undefined,
-  model: string | undefined
+  model: string | undefined,
+  signal?: AbortSignal
 ): Promise<{ text: string; usage?: TokenUsage }> {
   const response = await fetch(LLM_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task, text, context, model })
+    body: JSON.stringify({ task, text, context, model }),
+    signal
   })
 
   if (!response.ok) {
