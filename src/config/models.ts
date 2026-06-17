@@ -25,7 +25,14 @@ const models: Record<string, ProviderConfig> = {
       'mistral/mistral-small', // $0.10 / $0.30 — français
       'anthropic/claude-3-haiku' // $0.25 / $1.25 — option Anthropic économique
     ],
-    embeddings: [], // le Gateway ne fait pas d'embeddings → embeddings toujours locaux
+    // Le Gateway route aussi les modèles d'embeddings (slug provider/model, cf.
+    // api/embed.ts). Défaut bon marché : openai/text-embedding-3-small.
+    embeddings: [
+      'openai/text-embedding-3-small', // $0.02 / M — défaut
+      'openai/text-embedding-3-large', // $0.13 / M — plus précis
+      'google/gemini-embedding-001', // multilingue
+      'mistral/mistral-embed' // français
+    ],
     auth: false
   },
   // --- Local : transformers.js (ONNX, WebGPU/WASM) ---
@@ -46,20 +53,16 @@ const models: Record<string, ProviderConfig> = {
     embeddings: ['snowflake-arctic-embed-m-q0f32-MLC-b4'],
     auth: false
   },
-  // --- Local : MediaPipe Tasks GenAI ---
+  // --- Local : MediaPipe Tasks GenAI (génération uniquement, pas d'embeddings) ---
+  // Les .task sont résolus via VITE_TASKGENAI_BASE_URL (cf. engines/taskgenai.ts).
   taskgenai: {
     local: true,
     llm: ['gemma3-1b-it-int4.task', 'gemma2-2b-it-gpu-int8.bin'],
     embeddings: [],
     auth: false
-  },
-  // --- Local : Ollama (serveur local de l'utilisateur) ---
-  ollama: {
-    local: true,
-    llm: ['llama3.2'],
-    embeddings: ['mxbai-embed-large'],
-    auth: false
   }
+  // Ollama retiré : non câblé dans engine.ts (le serveur local nécessiterait un
+  // moteur dédié + CORS). À réintroduire avec son moteur le jour venu.
 }
 
 export default models

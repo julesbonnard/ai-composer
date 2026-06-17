@@ -67,7 +67,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
     const requestedModel = model && ALLOWED_MODELS.has(model) ? model : DEFAULT_MODEL
 
-    const { text: output } = await generateText({
+    const { text: output, usage } = await generateText({
       model: requestedModel,
       prompt: buildPrompt(task, text, context),
       providerOptions: {
@@ -78,7 +78,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
       }
     })
 
-    return response.status(200).json({ text: output })
+    return response.status(200).json({
+      text: output,
+      usage: { inputTokens: usage?.inputTokens, outputTokens: usage?.outputTokens }
+    })
   } catch (error: any) {
     // Rate-limit / budget Gateway : on remonte un message exploitable côté client.
     if (APICallError.isInstance(error)) {

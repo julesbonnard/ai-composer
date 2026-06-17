@@ -38,25 +38,56 @@ function getPipeline(task: PipelineType, model: string) {
   return pipelines.get(key)!
 }
 
-async function embed(model: string, texts: string[]): Promise<number[][]> {
-  const extractor = await getPipeline('feature-extraction', model)
-  const output = await extractor(texts, { pooling: 'mean', normalize: true })
-  return output.tolist()
+interface TokenUsage {
+  inputTokens?: number
+  outputTokens?: number
 }
 
-async function generate(model: string, prompt: string): Promise<string> {
+async function embed(
+  model: string,
+  texts: string[]
+): Promise<{ embeddings: number[][]; usage: TokenUsage }> {
+  const extractor = await getPipeline('feature-extraction', model)
+  const output = await extractor(texts, { pooling: 'mean', normalize: true })
+
+  // Comptage exact des tokens d'entrée via le tokenizer du pipeline (somme sur les textes).
+  let inputTokens: number | undefined
+  try {
+    inputTokens = texts.reduce((acc, t) => acc + extractor.tokenizer.encode(t).length, 0)
+  } catch {
+    inputTokens = undefined
+  }
+  return { embeddings: output.tolist(), usage: { inputTokens } }
+}
+
+async function generate(
+  model: string,
+  prompt: string
+): Promise<{ text: string; usage: TokenUsage }> {
   const generator = await getPipeline('text-generation', model)
   const output = await generator([{ role: 'user', content: prompt }], {
     max_new_tokens: 256,
     do_sample: false
   })
   const generated = output[0]?.generated_text
+  let text: string
   // Modèle de chat : generated_text est la liste de messages → on prend la réponse.
   if (Array.isArray(generated)) {
-    return generated.at(-1)?.content ?? ''
+    text = generated.at(-1)?.content ?? ''
+  } else {
+    // Modèle texte brut : on retire le prompt en tête.
+    text = typeof generated === 'string' ? generated.slice(prompt.length).trim() : ''
   }
-  // Modèle texte brut : on retire le prompt en tête.
-  return typeof generated === 'string' ? generated.slice(prompt.length).trim() : ''
+
+  // Comptage exact via le tokenizer déjà chargé dans le pipeline (encode → ids).
+  const count = (input: string): number | undefined => {
+    try {
+      return generator.tokenizer.encode(input).length
+    } catch {
+      return undefined
+    }
+  }
+  return { text, usage: { inputTokens: count(prompt), outputTokens: count(text) } }
 }
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {

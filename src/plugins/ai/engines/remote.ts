@@ -1,4 +1,5 @@
 import type { Task } from '../prompts'
+import type { TokenUsage } from '../activity'
 
 // Moteur distant : délègue à la fonction serverless /api/llm, qui appelle le
 // Vercel AI Gateway côté serveur (clé/OIDC jamais exposée au client). Le prompt
@@ -10,7 +11,7 @@ export async function remoteComplete(
   text: string,
   context: string | undefined,
   model: string | undefined
-): Promise<string> {
+): Promise<{ text: string; usage?: TokenUsage }> {
   const response = await fetch(LLM_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -22,14 +23,29 @@ export async function remoteComplete(
     throw new Error(detail.error || `LLM request failed: ${response.statusText}`)
   }
 
-  const data = (await response.json()) as { text: string }
-  return data.text
+  const data = (await response.json()) as { text: string; usage?: TokenUsage }
+  return { text: data.text, usage: data.usage }
 }
 
-// Le Gateway ne fournit pas d'embeddings (cf. doc AI Gateway). Les embeddings sont
-// donc toujours locaux — voir engines/local.ts.
-export function remoteEmbed(): Promise<number[][]> {
-  return Promise.reject(
-    new Error("Le Vercel AI Gateway ne fait pas d'embeddings ; utilisez un modèle d'embeddings local.")
-  )
+// Embeddings distants via la fonction serverless /api/embed (Gateway/OIDC côté
+// serveur). Le Gateway route bien les modèles d'embeddings (cf. api/embed.ts).
+const EMBED_API = '/api/embed'
+
+export async function remoteEmbed(
+  texts: string[],
+  model: string | undefined
+): Promise<{ embeddings: number[][]; usage?: TokenUsage }> {
+  const response = await fetch(EMBED_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texts, model })
+  })
+
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}))
+    throw new Error(detail.error || `Embed request failed: ${response.statusText}`)
+  }
+
+  const data = (await response.json()) as { embeddings: number[][]; usage?: { tokens?: number } }
+  return { embeddings: data.embeddings, usage: { inputTokens: data.usage?.tokens } }
 }

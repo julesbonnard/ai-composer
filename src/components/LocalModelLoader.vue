@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { localModelState } from '../plugins/ai/engines/local'
+import { localModelState } from '../plugins/ai/engines/loading'
 
 // Liste des fichiers en cours de téléchargement (modèle local transformers.js).
 const files = computed(() => Object.values(localModelState.files))
