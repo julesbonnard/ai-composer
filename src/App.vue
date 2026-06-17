@@ -2,6 +2,7 @@
 import { Analytics } from '@vercel/analytics/vue'
 import { computed } from 'vue'
 import { useRoute, RouterView } from 'vue-router'
+import LocalModelLoader from './components/LocalModelLoader.vue'
 
 const route = useRoute()
 
@@ -17,6 +18,7 @@ const gridColsClass = computed(() => {
 
 <template>
   <Analytics />
+  <LocalModelLoader />
   <main class="h-full grid transition-all duration-150" :class="gridColsClass">
     <RouterView />
   </main>

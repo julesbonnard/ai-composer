@@ -12,4 +12,10 @@ export default defineConfig({
     port: process.env.PORT as unknown as number,
   },
   plugins: [vue(), tailwindcss()],
+  // Pré-bundle transformers.js au démarrage : sinon il est optimisé à la volée quand
+  // le Web Worker le charge, ce qui déclenche un reload et une course 404→index.html
+  // (erreur vite:import-analysis sur index.html).
+  optimizeDeps: {
+    include: ['@huggingface/transformers'],
+  },
 })

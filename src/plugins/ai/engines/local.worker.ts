@@ -26,7 +26,12 @@ function getPipeline(task: PipelineType, model: string) {
       key,
       pipeline(task, model, {
         device,
-        dtype: device === 'webgpu' ? 'q4f16' : 'q8'
+        dtype: device === 'webgpu' ? 'q4f16' : 'q8',
+        // Progression de téléchargement/chargement → relayée à l'UI (broadcast,
+        // sans id de requête).
+        progress_callback: (data: unknown) => {
+          self.postMessage({ type: 'progress', model, data })
+        }
       })
     )
   }
