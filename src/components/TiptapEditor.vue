@@ -10,6 +10,8 @@ const props = defineProps<{
 const emits = defineEmits(['update:modelValue'])
 
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { requestSourceHighlight } from '../composables/useSourceHighlight'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { BubbleMenu } from '@tiptap/vue-3/menus'
 import type { EditorState } from '@tiptap/pm/state'
@@ -146,6 +148,26 @@ function completionProvenance() {
 function reviewCompletion() {
   editor.value?.chain().focus().extendMarkRange('completion').unsetMark('completion').run()
 }
+
+const router = useRouter()
+
+// Un passage « source » avec un id pointe vers une source ouvrable (les passages
+// shorten/alternative n'ont pas de source).
+function completionSourceId(): string {
+  const attrs = editor.value?.getAttributes('completion') ?? {}
+  return attrs['data-kind'] === 'source' && attrs['data-id'] ? attrs['data-id'] : ''
+}
+
+// Ouvre la source liée et demande le surlignage du segment d'origine.
+function openCompletionSource() {
+  const attrs = editor.value?.getAttributes('completion') ?? {}
+  const id = attrs['data-id']
+  if (!id) return
+  const offset = attrs['data-offset'] ? parseInt(attrs['data-offset'], 10) : -1
+  const len = attrs['data-len'] ? parseInt(attrs['data-len'], 10) : 0
+  requestSourceHighlight(id, offset, len)
+  router.push({ name: 'source', params: { id } })
+}
 </script>
 
 <template>
@@ -201,7 +223,15 @@ function reviewCompletion() {
         </p>
       </div>
       <button
-        class="btn btn-xs btn-primary ml-1 shrink-0"
+        v-if="completionSourceId()"
+        class="btn btn-xs btn-ghost ml-1 shrink-0"
+        title="Open the source and highlight the matching passage"
+        @click="openCompletionSource"
+      >
+        <span class="icon-[tabler--external-link] size-3.5"></span> Source
+      </button>
+      <button
+        class="btn btn-xs btn-primary shrink-0"
         title="Accept this passage and remove the AI highlight"
         @click="reviewCompletion"
       >

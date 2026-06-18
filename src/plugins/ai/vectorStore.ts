@@ -7,7 +7,8 @@ import { idbGet, idbSet, idbDel, CHUNKS_KEY } from './persistence'
 export interface Doc {
   id: string
   pageContent: string
-  metadata: { title: string; id: string }
+  // offset = position du chunk (en caractères) dans le contenu de la source.
+  metadata: { title: string; id: string; offset?: number }
 }
 
 interface StoredChunk {
@@ -38,12 +39,14 @@ function persist(): Promise<void> {
 }
 
 // Découpage récursif simple (équivalent RecursiveCharacterTextSplitter : 1000/200).
-function splitText(text: string, size = 1000, overlap = 200): string[] {
-  if (text.length <= size) return [text]
-  const pieces: string[] = []
+// Renvoie chaque tranche avec son offset de départ dans le texte (slice contigu →
+// offset déterministe, utilisé pour resurligner le segment dans la source).
+function splitText(text: string, size = 1000, overlap = 200): { content: string; start: number }[] {
+  if (text.length <= size) return [{ content: text, start: 0 }]
+  const pieces: { content: string; start: number }[] = []
   let start = 0
   while (start < text.length) {
-    pieces.push(text.slice(start, start + size))
+    pieces.push({ content: text.slice(start, start + size), start })
     start += size - overlap
   }
   return pieces
@@ -65,9 +68,9 @@ function cosineSimilarity(a: number[], b: number[]): number {
 export async function addDocuments(docs: Doc[]): Promise<void> {
   await ensureHydrated()
   const pieces = docs.flatMap((doc) =>
-    splitText(doc.pageContent).map((content) => ({
-      content,
-      metadata: doc.metadata
+    splitText(doc.pageContent).map((piece) => ({
+      content: piece.content,
+      metadata: { ...doc.metadata, offset: piece.start }
     }))
   )
   if (pieces.length === 0) return

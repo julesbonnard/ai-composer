@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, onMounted, nextTick } from 'vue'
 import { useSourcesStore } from '../stores/sources'
 import { useRouter, useRoute } from 'vue-router'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
@@ -8,6 +8,8 @@ import Heading from '@tiptap/extension-heading'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
 import Placeholder from '@tiptap/extension-placeholder'
+import SourceHighlight, { sourceHighlightKey } from '../plugins/SourceHighlight'
+import { sourceHighlight } from '../composables/useSourceHighlight'
 
 const router = useRouter()
 const route = useRoute()
@@ -54,6 +56,7 @@ const editor = useEditor({
     RecognitionParagraph,
     Paragraph,
     Text,
+    SourceHighlight,
     Placeholder.configure({
       showOnlyCurrent: false,
       placeholder: ({ node }) => {
@@ -90,6 +93,64 @@ async function save() {
     router.push({ name: 'source', params: { id } })
   }
 }
+
+// Convertit un offset (en caractères dans le contenu source) en position ProseMirror.
+// Le doc est `<h1>titre</h1>` + un paragraphe par ligne NON VIDE (cf. createParagraphs),
+// donc on apparie dans l'ordre les lignes non vides du contenu aux paragraphes du doc.
+function offsetToPos(content: string, offset: number): number | null {
+  const view = editor.value?.view
+  if (!view) return null
+  const paragraphs: { textStart: number; len: number }[] = []
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'paragraph') paragraphs.push({ textStart: pos + 1, len: node.textContent.length })
+  })
+
+  const lines = content.split('\n')
+  let acc = 0
+  let rendered = -1
+  for (const line of lines) {
+    const start = acc
+    const end = acc + line.length
+    if (line !== '') rendered++
+    if (offset >= start && offset <= end) {
+      const para = line !== '' ? paragraphs[rendered] : paragraphs[rendered + 1]
+      if (!para) return null
+      return para.textStart + (line !== '' ? Math.min(offset - start, para.len) : 0)
+    }
+    acc = end + 1 // + le « \n »
+  }
+  const last = paragraphs[paragraphs.length - 1]
+  return last ? last.textStart + last.len : null
+}
+
+// Surligne le segment source [offset, offset+len] et défile jusqu'à lui.
+function highlightCitation(offset: number, len: number) {
+  const view = editor.value?.view
+  const content = currentSource.value?.content
+  if (!view || !content || offset < 0) return
+
+  const from = offsetToPos(content, offset)
+  const to = offsetToPos(content, offset + Math.max(len, 1))
+  if (from == null || to == null || to <= from) {
+    view.dispatch(view.state.tr.setMeta(sourceHighlightKey, { type: 'clear' }))
+    return
+  }
+
+  view.dispatch(view.state.tr.setMeta(sourceHighlightKey, { type: 'set', from, to }))
+  const dom = view.domAtPos(from).node as HTMLElement
+  const el = dom?.nodeType === 1 ? dom : dom?.parentElement
+  el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+}
+
+// Déclenche le surlignage si la demande concerne la source affichée.
+function maybeHighlight() {
+  if (sourceHighlight.sourceId && sourceHighlight.sourceId === route.params.id) {
+    nextTick(() => highlightCitation(sourceHighlight.offset, sourceHighlight.len))
+  }
+}
+
+onMounted(maybeHighlight)
+watch(() => sourceHighlight.nonce, maybeHighlight)
 </script>
 
 <template>
@@ -149,5 +210,12 @@ async function save() {
 .source-editor .ProseMirror .is-empty::before {
   content: attr(data-placeholder);
   @apply float-left text-base-content/30 pointer-events-none h-0;
+}
+
+/* Segment source à l'origine d'un passage IA (surlignage transitoire au clic). */
+.source-editor .ProseMirror .source-hit {
+  background-color: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 22%, transparent);
 }
 </style>

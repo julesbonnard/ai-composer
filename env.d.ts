@@ -6,7 +6,9 @@ type Completion = {
   context: {
     id?: string
     pageContent: string
-    metadata: { title?: string; id?: string; name?: string }
+    // offset = position (en caractères) du chunk dans le contenu de la source,
+    // pour resurligner le segment exact à l'ouverture.
+    metadata: { title?: string; id?: string; name?: string; offset?: number }
   }
 }
 

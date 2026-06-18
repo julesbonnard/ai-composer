@@ -292,10 +292,17 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
             }
           })
         } else if (this.storage.currentCompletion.answer) {
+          const { context, answer } = this.storage.currentCompletion
+          // Plage source (offset + longueur) conservée sur la mark pour resurligner
+          // le segment d'origine à l'ouverture de la source.
+          const esc = (s: string) =>
+            s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          const offset = context.metadata.offset ?? 0
+          const len = (context.pageContent ?? '').length
           this.editor
             .chain()
             .insertContent(
-              `<mark class="completion" data-kind="source" data-id="${this.storage.currentCompletion.context.id}" data-source="${this.storage.currentCompletion.context.metadata.title}">${this.storage.currentCompletion.answer}</mark> `
+              `<mark class="completion" data-kind="source" data-id="${context.id}" data-source="${esc(context.metadata.title ?? '')}" data-offset="${offset}" data-len="${len}">${answer}</mark> `
             )
             .run()
           this.editor.view.dispatch(

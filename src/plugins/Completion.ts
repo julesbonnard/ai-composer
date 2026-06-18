@@ -28,6 +28,22 @@ const Completion = Highlight.extend({
       parseHTML: (el: HTMLElement) => el.getAttribute('data-kind') || 'source',
       renderHTML: (attrs: Record<string, string>) =>
         attrs['data-kind'] ? { 'data-kind': attrs['data-kind'] } : {}
+    },
+    // Position (offset, en caractères) et longueur du segment source ayant servi à
+    // générer la complétion. Le texte affiché étant généré par l'IA, il ne se
+    // retrouve pas tel quel dans la source : on conserve donc la plage d'origine
+    // pour la resurligner exactement à l'ouverture.
+    'data-offset': {
+      default: '',
+      parseHTML: (el: HTMLElement) => el.getAttribute('data-offset') || '',
+      renderHTML: (attrs: Record<string, string>) =>
+        attrs['data-offset'] ? { 'data-offset': attrs['data-offset'] } : {}
+    },
+    'data-len': {
+      default: '',
+      parseHTML: (el: HTMLElement) => el.getAttribute('data-len') || '',
+      renderHTML: (attrs: Record<string, string>) =>
+        attrs['data-len'] ? { 'data-len': attrs['data-len'] } : {}
     }
   })
 }).configure({
