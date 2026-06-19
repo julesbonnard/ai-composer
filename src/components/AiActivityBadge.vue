@@ -15,6 +15,14 @@ const modelLabel = computed(() => {
 
 const visible = computed(() => aiActivity.active || aiActivity.mode !== null)
 const usage = computed(() => aiActivity.usage)
+
+// Coût cumulé estimé de la session (appels cloud uniquement ; tarifs indicatifs).
+const sessionCost = computed(() => aiActivity.sessionCost)
+function fmtCost(c: number): string {
+  if (c >= 1) return `$${c.toFixed(2)}`
+  if (c >= 0.01) return `$${c.toFixed(3)}`
+  return `$${c.toFixed(4)}`
+}
 </script>
 
 <template>
@@ -47,6 +55,13 @@ const usage = computed(() => aiActivity.usage)
         <span class="border-l border-current/20 pl-1.5">↑ {{ usage.inputTokens ?? '–' }}</span>
         <span v-if="usage.outputTokens != null">↓ {{ usage.outputTokens }}</span>
       </span>
+
+      <span
+        v-if="sessionCost > 0"
+        class="border-l border-current/20 pl-1.5 tabular-nums opacity-80"
+        title="Coût cumulé estimé de la session (appels cloud, tarifs indicatifs)"
+        >~{{ fmtCost(sessionCost) }}</span
+      >
     </div>
   </Transition>
 </template>

@@ -20,6 +20,8 @@ export interface AiActivityState {
   model: string
   task: string | null
   usage: TokenUsage | null
+  // Coût cumulé ($) des appels Gateway depuis le chargement de la page (le local est gratuit).
+  sessionCost: number
 }
 
 export const aiActivity = reactive<AiActivityState>({
@@ -27,8 +29,15 @@ export const aiActivity = reactive<AiActivityState>({
   mode: null,
   model: '',
   task: null,
-  usage: null
+  usage: null,
+  sessionCost: 0
 })
+
+// Ajoute le coût estimé d'un appel au cumul de session (cf. pricing.costOf, appelé
+// depuis engine.ts où le modèle et l'usage sont connus). Le local ajoute 0.
+export function addCost(amount: number) {
+  if (amount > 0) aiActivity.sessionCost += amount
+}
 
 // Compteur de requêtes concurrentes : l'autocomplétion lance une génération par
 // source en parallèle. On reste « actif » tant qu'au moins une requête tourne, et

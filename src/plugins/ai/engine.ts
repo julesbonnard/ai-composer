@@ -6,7 +6,8 @@ import { remoteComplete, remoteEmbed } from './engines/remote'
 import { localComplete, localEmbed } from './engines/local'
 import { webllmComplete, webllmEmbed } from './engines/webllm'
 import { taskgenaiComplete } from './engines/taskgenai'
-import { startActivity, endActivity, type TokenUsage } from './activity'
+import { startActivity, endActivity, addCost, type TokenUsage } from './activity'
+import { costOf } from './pricing'
 import { toastError } from '../../composables/useToasts'
 
 type CompleteResult = { text: string; usage?: TokenUsage }
@@ -129,6 +130,7 @@ export async function complete(
       onChunk
     )
     endActivity(usage)
+    if (!local && usage) addCost(costOf(model, usage))
     // Trace le prompt EXACT (même fonction que les moteurs) et la réponse.
     if (isAiDebug()) {
       const { system, user } = buildPrompt(task, text, context)
@@ -155,6 +157,7 @@ export async function embed(texts: string[]): Promise<number[][]> {
   try {
     const { embeddings, usage } = await dispatchEmbed(provider, texts, model)
     endActivity(usage)
+    if (!local && usage) addCost(costOf(model, usage))
     return embeddings
   } catch (error) {
     endActivity()
