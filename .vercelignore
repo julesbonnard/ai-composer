@@ -1,0 +1,23 @@
+# Build local (Vercel reconstruit à distance)
+dist
+dist-ssr
+
+# Modèles locaux volumineux (MediaPipe .task / .bin, WebLLM) — dépassent la limite
+# de taille Vercel et n'ont pas à être déployés. En prod, héberger les .task ailleurs
+# et pointer VITE_TASKGENAI_BASE_URL dessus (cf. CLAUDE.md).
+*.bin
+*.task
+
+# Secrets / env locaux (Vercel injecte les variables via le dashboard)
+.env
+.env.*
+
+# Caches & config locale d'outillage
+.git
+node_modules
+.agents
+.claude
+.cursor
+.vscode
+.DS_Store
+*.tsbuildinfo
