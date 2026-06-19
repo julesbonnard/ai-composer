@@ -1,19 +1,14 @@
-// Point d'entrée du module IA (Vercel AI SDK). Remplace src/plugins/langchain/.
+// Point d'entrée du module IA (Vercel AI SDK), ex-LangChain.js.
 // Conserve la même API publique consommée par HomeView.vue et le store sources.
-import { similaritySearch } from './vectorStore'
-
-export type { Doc } from './vectorStore'
+export type { Doc, RankedSource } from './vectorStore'
 export {
   addDocuments,
-  similaritySearch,
+  rankSources,
+  buildSourceContext,
   presentSourceIds,
   removeDocuments,
   clearChunks
 } from './vectorStore'
 export { autocompleteText, shortenText, alternativeText } from './completion'
 export { abortGeneration } from './engine'
-export { llmSelection, embeddingsSelection } from './selection'
-
-export async function searchContext(text: string) {
-  return similaritySearch(text)
-}
+export { getLlmSelection, embeddingsSelection } from './selection'

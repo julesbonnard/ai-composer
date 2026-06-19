@@ -13,8 +13,12 @@ declare module '@tiptap/core' {
   }
 }
 
+// Une proposition de complétion : appelée pour (re)générer, avec un onChunk optionnel
+// qui reçoit la complétion partielle au fil du streaming (ghost text progressif).
+export type CompletionThunk = (onChunk?: (partial: Completion) => void) => Promise<Completion>
+
 export interface AutocompletionOptions {
-  autocompletion: (text: string, fullText: string) => Promise<(() => Promise<Completion>)[]>
+  autocompletion: (draftBeforeCursor: string, paragraph: string) => Promise<CompletionThunk[]>
   shorten: (text: string) => Promise<any>
   alternative: (text: string) => Promise<any>
   cancel: () => void
@@ -26,7 +30,7 @@ export interface AutocompletionStorage {
   suggestCompletion: any
   shorten: (view: EditorView, text: string, from: number, to: number) => Promise<void>
   alternative: (view: EditorView, text: string, from: number, to: number) => Promise<void>
-  availableCompletions: (() => Promise<Completion>)[]
+  availableCompletions: CompletionThunk[]
   currentCompletionIndex: number
   currentCompletion: Completion
   setPlaceholder: (view: EditorView, node: Node, pos: number) => void
@@ -54,39 +58,58 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
       view: EditorView,
       node: Node,
       pos: number,
-      availableCompletions: (() => Promise<Completion>)[],
+      availableCompletions: CompletionThunk[],
       currentCompletionIndex: number
     ) => {
       if (availableCompletions[currentCompletionIndex] == null) return
+
+      // Pose/replace la décoration ghost text et synchronise l'état (navigation +
+      // insertion Tab). Appelé à chaque incrément de streaming puis une dernière
+      // fois sur le résultat final.
+      const renderCompletion = (answer: string, context: Completion['context']) => {
+        const title = context.metadata.title ?? context.metadata.name ?? ''
+        const decoration = Decoration.node(pos, pos + node.nodeSize, {
+          class: 'autocompletion',
+          'data-autocompletion': `${answer} (${title})`
+        })
+        view.dispatch(
+          view.state.tr.setMeta(pluginKey, {
+            action: 'add',
+            decoration,
+            availableCompletions,
+            currentCompletionIndex,
+            currentCompletion: { answer, context }
+          })
+        )
+      }
+
       let result: Completion
       try {
-        result = await availableCompletions[currentCompletionIndex]()
+        result = await availableCompletions[currentCompletionIndex]((partial) => {
+          if (partial.answer) renderCompletion(partial.answer, partial.context)
+        })
       } catch {
         // Erreur déjà signalée par un toast (engine.ts) ; on retire le placeholder « … ».
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
         return
       }
-      const { answer, context } = result
-      const decoration = Decoration.node(pos, pos + node.nodeSize, {
-        class: 'autocompletion',
-        'data-autocompletion': `${answer} (${context.metadata.title})`
-      })
-      view.dispatch(
-        view.state.tr.setMeta(pluginKey, {
-          action: 'add',
-          decoration,
-          availableCompletions,
-          currentCompletionIndex,
-          currentCompletion: { answer, context }
-        })
-      )
+      renderCompletion(result.answer, result.context)
     }
 
     const getCompletionsWrapper = async (view: EditorView, node: Node, pos: number) => {
-      const fullText = view.state.doc.textContent
+      // Brouillon AVANT le curseur (tous blocs confondus, séparés par \n), plafonné :
+      // c'est la continuation donnée au LLM. La requête de ranking en dérive (fin du
+      // brouillon, côté HomeView). On n'envoie jamais le texte situé APRÈS le curseur.
+      const cursor = view.state.selection.anchor
+      const DRAFT_CAP = 12000
+      const before = view.state.doc.textBetween(0, cursor, '\n', ' ')
+      const draft = before.length > DRAFT_CAP ? before.slice(-DRAFT_CAP) : before
+      // Paragraphe COURANT (du début du bloc au curseur) : sert de requête de ranking
+      // — unité sémantique nette, sans déborder sur le paragraphe précédent.
+      const paragraph = view.state.doc.textBetween(view.state.selection.$from.start(), cursor, '\n', ' ')
       let availableCompletions: (() => Promise<Completion>)[]
       try {
-        availableCompletions = await this.options.autocompletion(node.textContent, fullText)
+        availableCompletions = await this.options.autocompletion(draft, paragraph)
       } catch {
         // Erreur (embeddings/contexte) déjà signalée en amont ; on retire le placeholder.
         view.dispatch(view.state.tr.setMeta(pluginKey, { action: 'remove' }))
@@ -195,7 +218,10 @@ export default Extension.create<AutocompletionOptions, AutocompletionStorage>({
               if (action == 'remove') {
                 set = DecorationSet.empty
               } else if (action == 'add') {
-                set = set.add(tr.doc, [decoration])
+                // Une seule décoration ghost active à la fois : on remplace (le
+                // placeholder « … » puis chaque incrément de streaming se succèdent
+                // sans s'empiler).
+                set = DecorationSet.create(tr.doc, [decoration])
               } else if (action == 'reset') {
                 this.storage.availableCompletions = []
                 this.storage.currentCompletionIndex = 0

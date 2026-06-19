@@ -3,6 +3,7 @@ import { useSourcesStore } from '../stores/sources'
 import { useDropzone } from 'vue3-dropzone'
 import { useRouter } from 'vue-router'
 import * as pdfjsLib from 'pdfjs-dist'
+import { extractStructuredText } from '../plugins/pdf/structuredText'
 
 const sourcesStore = useSourcesStore()
 const { addSource } = sourcesStore
@@ -26,26 +27,8 @@ async function onDrop(acceptFiles: any[]) {
     const typedarray = new Uint8Array(reader.result as ArrayBuffer)
     await loadPDFReader()
     const pdf = await pdfjs!.getDocument({ data: typedarray }).promise
-    const pageCount = pdf.numPages
-    let pdfText = ''
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-      const page = await pdf.getPage(pageNum)
-      const pageText = await page.getTextContent()
-
-      let lastItemStr = ''
-      pageText.items.forEach((item) => {
-        if ('str' in item === false) return
-        pdfText += item.str
-        if (item.hasEOL) {
-          if (lastItemStr.endsWith('.')) {
-            pdfText += '\n'
-          } else {
-            pdfText += ' '
-          }
-        }
-        lastItemStr = item.str
-      })
-    }
+    // Extraction structurée (titres/paragraphes via géométrie pdfjs) → Markdown.
+    const pdfText = await extractStructuredText(pdf)
     const { id } = await addSource(pdfText, file.name)
     router.push({ name: 'source', params: { id } })
   }

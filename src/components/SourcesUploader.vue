@@ -2,7 +2,6 @@
 import { useSourcesStore } from '../stores/sources'
 import { useDropzone } from 'vue3-dropzone'
 import { useRouter } from 'vue-router'
-// import { WebPDFLoader } from "@langchain/community/document_loaders/web/pdf"
 import * as pdfjsLib from 'pdfjs-dist'
 
 const sourcesStore = useSourcesStore()
@@ -25,15 +24,6 @@ async function loadPDFReader() {
 async function onDrop(acceptFiles: any[]) {
   if (acceptFiles.length == 0) return
   const file = acceptFiles[0]
-  // const loader = new WebPDFLoader(file, {
-  //   splitPages: false,
-  //   pdfjs: () => Promise.resolve(pdfjs)
-  // })
-  // const docs = await loader.load()
-  // const pdfText = docs.map(doc => doc.pageContent).join('\n\n')
-
-  // const { id } = await addSource(pdfText, file.name)
-  // router.push({ name: 'source', params: { id } })
   const reader = new FileReader()
   reader.onload = async () => {
     const typedarray = new Uint8Array(reader.result as ArrayBuffer)

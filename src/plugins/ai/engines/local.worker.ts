@@ -2,6 +2,7 @@ import {
   pipeline,
   env,
   InterruptableStoppingCriteria,
+  TextStreamer,
   type PipelineType
 } from '@huggingface/transformers'
 
@@ -76,12 +77,21 @@ async function generate(
   const generator = await getPipeline('text-generation', model)
   const stopper = new InterruptableStoppingCriteria()
   stoppers.set(id, stopper)
+  // Streaming token-par-token : on relaie chaque incrément décodé au thread principal
+  // (skip_prompt → on n'émet que le texte généré, pas le prompt rejoué).
+  const streamer = new TextStreamer(generator.tokenizer, {
+    skip_prompt: true,
+    callback_function: (delta: string) => {
+      if (delta) self.postMessage({ id, chunk: delta })
+    }
+  })
   let output: any
   try {
     output = await generator([{ role: 'user', content: prompt }], {
       max_new_tokens: 256,
       do_sample: false,
-      stopping_criteria: stopper
+      stopping_criteria: stopper,
+      streamer
     })
   } finally {
     stoppers.delete(id)

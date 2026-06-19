@@ -1,6 +1,6 @@
 # Roadmap AI Composer
 
-État au 17 juin 2026. Voir le concept dans `src/slides.md` et l'architecture dans `CLAUDE.md`.
+État au 18 juin 2026. Voir le concept dans `src/slides.md` et l'architecture dans `CLAUDE.md`.
 
 Le fil directeur : **aligner ai-composer sur les choix déjà éprouvés dans `afpnews-deck`**
 (Vercel AI SDK v6, `@ai-sdk/vue`, intégration des outils AFP via `afpnews-mcp-server`),
@@ -10,18 +10,23 @@ et faire de l'AFP une source de contexte de première classe.
 
 ## ✅ Fait (juin 2026)
 
-- Migration LangChain → Vercel AI SDK v6.
-- **Abstraction unique local ↔ distant** (`ai/engine.ts`) : bascule sur le flag `local` du
-  provider, prompts partagés (`ai/prompts.ts`) entre serveur et worker.
-- **Distant via Vercel AI Gateway côté serveur** (`api/llm.ts`, slugs `provider/model`,
-  auth OIDC) — best practice « app qui dépend d'un Gateway », aucune clé côté client.
-- **Embeddings locaux** (transformers.js, le Gateway ne fait pas d'embeddings) + génération
-  locale câblée via le même worker.
+- Migration LangChain → Vercel AI SDK v6, **`@langchain/*` retirés** (deps + dossier
+  `src/plugins/langchain/` orphelin supprimés).
+- **Dispatch multi-moteurs local ↔ distant** (`ai/engine.ts`) : route par provider
+  (`gateway` / `transformers` / `webLLM` / `taskgenai`), prompts partagés (`ai/prompts.ts`)
+  entre serveur et moteurs navigateur.
+- **Distant via Vercel AI Gateway côté serveur** (`api/llm.ts` + `api/embed.ts`, slugs
+  `provider/model`, auth OIDC) — aucune clé côté client. Le Gateway route LLM **et** embeddings.
+- **Moteurs locaux câblés** : transformers.js (génération + embeddings), WebLLM (génération +
+  embeddings), MediaPipe/taskgenai (génération). Les sources ne quittent pas le poste.
+- **Streaming de la complétion** (`streamText` côté serveur → NDJSON ; `TextStreamer`
+  transformers, `stream:true` WebLLM, progress listener MediaPipe) → ghost text progressif.
+- **Persistance IndexedDB** des sources et des vecteurs (`ai/persistence.ts`).
 
-Reste : valider la génération locale en runtime (téléchargement modèle, WebGPU), UI de
-gestion des modèles locaux, persistance, streaming, rate-limiting Gateway.
+Reste : valider la génération **locale** en runtime (téléchargement modèle, WebGPU), UI de
+gestion des modèles locaux, rate-limiting Gateway (Phase E).
 
-## Phase A — Migration LangChain.js → Vercel AI SDK v6  ✅ (socle fait)
+## Phase A — Migration LangChain.js → Vercel AI SDK v6  ✅ TERMINÉE
 
 **Pourquoi.** `@langchain/community` est déprécié en amont ; les chunks LangChain pèsent
 ~1,7 Mo (mistralai 1 Mo, openai 198 Ko, prompt_values 471 Ko) ; et `afpnews-deck` tourne
@@ -88,14 +93,15 @@ rédaction (contexte, similaires, illustration via `afp_search_media`).
 
 ---
 
-## Phase D — Persistance & confidentialité
+## Phase D — Persistance & confidentialité  ✅ TERMINÉE (code)
 
-- **Persister les sources** : le vector store est en mémoire (perdu au reload),
-  l'IndexedDB est commentée dans `src/stores/sources.ts`. Rebrancher via `idb`
-  (déjà installé) ou pgvector Supabase (comme deck).
-- **Modèles locaux** : `transformers` / `webLLM` / `taskgenai` sont désactivés dans
-  `langchain/index.ts`. La confidentialité (sources gardées en local) est un argument
-  central du deck — Transformers.js v4 + WebGPU rendent ça viable. À réactiver proprement.
+- **Sources persistées** ✅ : vecteurs et liste de sources dans IndexedDB
+  (`ai/persistence.ts` — clés `chunks:<modèle>` / `sources`). Au chargement,
+  `loadSources()` réconcilie et ré-embedde toute source absente du store.
+- **Modèles locaux câblés** ✅ : `transformers` / `webLLM` / `taskgenai` réécrits en moteurs
+  natifs sous `ai/engines/` (sans LangChain). Les sources restent sur le poste.
+- **Reste** : validation **runtime** des moteurs locaux (téléchargement de modèle + WebGPU,
+  non éprouvé headless) et UI de gestion/téléchargement des modèles locaux.
 
 ---
 
@@ -105,3 +111,45 @@ rédaction (contexte, similaires, illustration via `afp_search_media`).
 - Résorber les ~37 findings ESLint (`no-explicit-any` dans la glue LLM, `catch` inutilisés).
 - Quelques tests autour du RAG / de l'auto-complétion (aucun aujourd'hui).
 - Durcir le CORS de `/api/*` (codé en dur sur le domaine prod dans `vite.config.ts`).
+
+---
+
+## Phase F — Retrieval & pertinence  ⭐ CŒUR PRODUIT
+
+**Le retrieval est le cœur de la pertinence d'ai-composer** et doit être revu en détail.
+
+**État actuel** (`src/plugins/ai/vectorStore.ts`).
+- `similaritySearch(query, k=4)` : **cosinus pur** sur tous les chunks (scan linéaire O(n)),
+  tri décroissant, puis **dédoublonnage à 1 chunk par source** (`seen` sur `metadata.id`).
+- Puis **une complétion générée par source** (N appels LLM séparés, navigables ↑/↓).
+- ⚠️ La mention « similarité MMR » (doc historique) était **fausse** : aucun MMR implémenté.
+
+**✅ Correctifs de base appliqués (juin 2026)** — la recherche fonctionne nettement mieux :
+- Requête = **contexte local près du curseur** (paragraphe en cours), plus tout le document
+  (qui diluait le vecteur). Cf. `HomeView.autocompletion`.
+- **Préfixes E5** `query: ` / `passage: ` appliqués pour les modèles E5 (défaut
+  `multilingual-e5-small`) — obligatoires, sinon recherche fortement dégradée.
+- Découpage **par paragraphe** (chunks sémantiques) au lieu de fenêtres 1000/200.
+
+**Cible à explorer.**
+1. **Corriger la doc** (rapide) : décrire l'algo réel (cosinus + dédup par source), retirer
+   « MMR ».
+2. **Plusieurs chunks par source** : « 1 chunk/source » n'est pas forcément idéal. Pouvoir
+   renvoyer plusieurs chunks (y compris plusieurs d'une même source) au LLM dans **une seule
+   requête**.
+3. **Attribution par le LLM** : faire indiquer au modèle **de quel chunk** vient la complétion
+   → sortie structurée `{ completion, chunkId }`. Le `chunkId` doit remapper vers
+   `{ data-id, data-offset, data-len }` pour le resurlignage du segment d'origine.
+   ⚠️ Risque d'**attribution hallucinée** (citer une source plausible mais fausse) → id court
+   par chunk dans le prompt + fallback si id invalide.
+4. **MMR (re)devient pertinent** dès qu'on renvoie plusieurs chunks : pénaliser la redondance
+   inter-résultats (sinon 4 chunks quasi identiques, aggravé par le chevauchement de 200).
+5. **Latence/coût/UX** : 1 appel groupé vs N appels parallèles. Le groupé est plus cohérent
+   (le modèle voit tout le contexte) mais change l'UX « une proposition par source / ↑↓ » —
+   à repenser.
+6. **Indexation** : le scan O(n) suffit pour quelques sources ; envisager un ANN seulement si
+   le corpus grossit beaucoup.
+
+**Suggestion d'attaque.** Corriger la doc (1) → prototyper la sortie structurée
+`{ completion, chunkId }` sur le **seul moteur Gateway** (le plus testable) → généraliser aux
+moteurs locaux → réintroduire un vrai MMR si la diversité le justifie.

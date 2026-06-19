@@ -149,8 +149,15 @@ function maybeHighlight() {
   }
 }
 
+// Retire le surlignage sur demande (fermeture du tooltip de revue côté article).
+function clearHighlight() {
+  const view = editor.value?.view
+  if (view) view.dispatch(view.state.tr.setMeta(sourceHighlightKey, { type: 'clear' }))
+}
+
 onMounted(maybeHighlight)
 watch(() => sourceHighlight.nonce, maybeHighlight)
+watch(() => sourceHighlight.clearNonce, clearHighlight)
 </script>
 
 <template>

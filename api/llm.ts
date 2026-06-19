@@ -1,4 +1,4 @@
-import { generateText, APICallError } from 'ai'
+import { streamText, APICallError } from 'ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHash } from 'node:crypto'
 import { buildPrompt, type Task } from '../src/plugins/ai/prompts'
@@ -12,7 +12,11 @@ import models from '../src/config/models'
 //  - garde de taille d'entrée (coût),
 //  - identifiant utilisateur dérivé de l'IP (hachée) + tags pour rate-limit/budget Gateway
 //    (à configurer dans le dashboard Vercel → AI Gateway).
-// Défaut bon marché, compatible free tier ($5/mois). Doit figurer dans gateway.llm.
+//
+// ⚠️ Signature Node `(req, res)` (et NON Web Request→Response) : c'est ce que le runtime
+// @vercel/node passe à ce fichier. Le streaming se fait par `res.write` ; les en-têtes
+// `X-Accel-Buffering: no` + `Cache-Control: no-transform` + `res.flushHeaders()` évitent
+// que le proxy bufferise la réponse (sinon les deltas arrivent tous d'un coup à la fin).
 const DEFAULT_MODEL = 'google/gemini-2.5-flash-lite'
 const ALLOWED_MODELS = new Set(models.gateway?.llm ?? [DEFAULT_MODEL])
 
@@ -37,6 +41,16 @@ function userIdFromRequest(request: VercelRequest): string {
   const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded || '').split(',')[0].trim()
   // Haché pour ne pas stocker l'IP en clair dans les logs Gateway.
   return createHash('sha256').update(ip || 'unknown').digest('hex').slice(0, 16)
+}
+
+// Mappe une erreur (Gateway ou autre) vers un statut HTTP + message lisible.
+function friendlyError(error: unknown): { status: number; message: string } {
+  if (APICallError.isInstance(error)) {
+    if (error.statusCode === 429) return { status: 429, message: 'Rate limit atteint, réessayez plus tard.' }
+    if (error.statusCode === 402) return { status: 402, message: 'Budget IA épuisé pour le moment.' }
+  }
+  const status = typeof (error as any)?.statusCode === 'number' ? (error as any).statusCode : 500
+  return { status, message: (error as any)?.message || 'LLM request failed' }
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
@@ -67,35 +81,73 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
     const requestedModel = model && ALLOWED_MODELS.has(model) ? model : DEFAULT_MODEL
 
-    const { text: output, usage } = await generateText({
+    // onError capture la VRAIE cause (sinon le SDK ne remonte qu'un générique
+    // « No output generated »). onFinish fournit l'usage exact.
+    let streamErr: unknown = null
+    let usage: { inputTokens?: number; outputTokens?: number } | undefined
+    const { system, user } = buildPrompt(task, text, context)
+    const result = streamText({
       model: requestedModel,
-      prompt: buildPrompt(task, text, context),
+      system,
+      prompt: user,
       providerOptions: {
         gateway: {
           user: userIdFromRequest(request),
           tags: ['app:ai-composer', `task:${task}`]
         }
+      },
+      onError: ({ error }) => {
+        streamErr = error
+        console.error('LLM stream error:', error)
+      },
+      onFinish: ({ totalUsage }) => {
+        usage = { inputTokens: totalUsage?.inputTokens, outputTokens: totalUsage?.outputTokens }
       }
     })
 
-    return response.status(200).json({
-      text: output,
-      usage: { inputTokens: usage?.inputTokens, outputTokens: usage?.outputTokens }
-    })
-  } catch (error: any) {
-    // Rate-limit / budget Gateway : on remonte un message exploitable côté client.
-    if (APICallError.isInstance(error)) {
-      if (error.statusCode === 429) {
-        const retryAfter = error.responseHeaders?.['retry-after']
-        if (retryAfter) response.setHeader('Retry-After', retryAfter)
-        return response.status(429).json({ error: 'Rate limit atteint, réessayez plus tard.' })
-      }
-      if (error.statusCode === 402) {
-        return response.status(402).json({ error: 'Budget IA épuisé pour le moment.' })
+    // En-têtes différés : tant qu'aucun octet n'est parti, on peut encore renvoyer un
+    // vrai statut (429/402/5xx). Les en-têtes anti-buffering évitent que le flux soit
+    // bufferisé par le proxy (sinon les deltas arrivent d'un coup).
+    let started = false
+    const start = () => {
+      if (started) return
+      response.statusCode = 200
+      response.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      response.setHeader('Cache-Control', 'no-cache, no-transform')
+      response.setHeader('X-Accel-Buffering', 'no')
+      response.flushHeaders?.()
+      started = true
+    }
+    const write = (obj: unknown) => response.write(JSON.stringify(obj) + '\n')
+
+    // streamText avec onError n'effectue PAS de throw dans textStream : la boucle se
+    // termine et l'erreur est dans `streamErr`.
+    for await (const delta of result.textStream) {
+      if (delta) {
+        start()
+        write({ delta })
       }
     }
-    console.error('LLM error:', error)
-    const status = typeof error?.statusCode === 'number' ? error.statusCode : 500
-    return response.status(status).json({ error: error?.message || 'LLM request failed' })
+
+    // Erreur survenue AVANT tout octet → vrai statut HTTP (en-têtes pas encore envoyés).
+    if (streamErr && !started) throw streamErr
+    // Erreur en cours de flux → ligne {"error"} (statut déjà 200).
+    if (streamErr) {
+      start()
+      write({ error: friendlyError(streamErr).message })
+      return response.end()
+    }
+    // Cas normal (y compris réponse vide sans erreur) : on ouvre le flux et renvoie l'usage.
+    start()
+    write({ usage: usage ?? {} })
+    return response.end()
+  } catch (error: any) {
+    if (APICallError.isInstance(error) && error.statusCode === 429) {
+      const retryAfter = error.responseHeaders?.['retry-after']
+      if (retryAfter) response.setHeader('Retry-After', retryAfter)
+    }
+    const { status, message } = friendlyError(error)
+    if (status >= 500) console.error('LLM error:', error)
+    return response.status(status).json({ error: message })
   }
 }

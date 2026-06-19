@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   modelValue?: object
-  autocompletion: (text: string, fullText: string) => Promise<any>
+  autocompletion: (draftBeforeCursor: string, paragraph: string) => Promise<any>
   shorten: (text: string) => Promise<string>
   alternative: (text: string) => Promise<string>
   cancel: () => void
@@ -11,7 +11,7 @@ const emits = defineEmits(['update:modelValue'])
 
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { requestSourceHighlight } from '../composables/useSourceHighlight'
+import { requestSourceHighlight, clearSourceHighlight } from '../composables/useSourceHighlight'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { BubbleMenu } from '@tiptap/vue-3/menus'
 import type { EditorState } from '@tiptap/pm/state'
@@ -30,6 +30,9 @@ const Article = Document.extend({
 })
 
 const wordCount = ref(0)
+// Suivi de la présence du curseur dans un passage IA (transition true→false =
+// fermeture du tooltip de revue → clear du surlignage source).
+let wasInCompletion = false
 const editor = useEditor({
   content: props.modelValue,
   extensions: [
@@ -81,6 +84,13 @@ const editor = useEditor({
   onUpdate: ({ editor }) => {
     emits('update:modelValue', editor.getJSON())
     countWords()
+  },
+  // Quand le curseur quitte un passage IA, le tooltip de revue se ferme : on retire
+  // alors le surlignage du segment dans l'éditeur de source (s'il y en avait un).
+  onSelectionUpdate: ({ editor }) => {
+    const inCompletion = editor.isActive('completion')
+    if (wasInCompletion && !inCompletion) clearSourceHighlight()
+    wasInCompletion = inCompletion
   },
   onCreate: () => {
     countWords()

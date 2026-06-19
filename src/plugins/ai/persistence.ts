@@ -33,5 +33,7 @@ export async function idbDel(key: string): Promise<void> {
   await (await getDB()).delete(STORE, key)
 }
 
-export const CHUNKS_KEY = (model: string) => `chunks:${model}`
+// v2 : changement de sémantique d'embedding (préfixes E5 + découpage par paragraphe).
+// Bumper la version abandonne les anciens vecteurs → ré-embedding propre au chargement.
+export const CHUNKS_KEY = (model: string) => `chunks:v2:${model}`
 export const SOURCES_KEY = 'sources'

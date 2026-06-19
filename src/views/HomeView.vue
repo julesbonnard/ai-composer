@@ -8,27 +8,57 @@ import ThemeToggle from '../components/ThemeToggle.vue'
 import { storeToRefs } from 'pinia'
 import { useEditorStore } from '../stores/editor'
 import { ref } from 'vue'
-import { searchContext, autocompleteText, shortenText, alternativeText, abortGeneration } from '../plugins/ai'
-import type { Doc } from '../plugins/ai'
+import {
+  rankSources,
+  buildSourceContext,
+  autocompleteText,
+  shortenText,
+  alternativeText,
+  abortGeneration
+} from '../plugins/ai'
+import { useSourcesStore } from '../stores/sources'
 import { toastInfo } from '../composables/useToasts'
 
 const editorStore = useEditorStore()
 const { article } = storeToRefs(editorStore)
+const sourcesStore = useSourcesStore()
 
 const editor = ref<InstanceType<typeof TiptapEditor> | null>(null)
 
-function generateCompletion(text: string, doc: Doc) {
-  return () => autocompleteText(text, doc)
-}
+// Budget (≈ caractères) pour envoyer une source ENTIÈRE au LLM ; au-delà → repli sur
+// ses meilleurs chunks. ~6000 car. ≈ 1500 tokens.
+const WHOLE_SEND_CHARS = 6000
 
-const autocompletion = async (text: string, fullText: string) => {
-  const context = await searchContext(fullText)
-  if (!context || context.length === 0) {
-    toastInfo('Ajoutez des sources pour obtenir des complétions liées au contexte.', 'Aucune source')
+// Option C : on classe les sources ACTIVES par pertinence (requête = paragraphe en
+// cours d'écriture), puis on génère une complétion À LA DEMANDE pour la source courante
+// (↑/↓ = source suivante). Chaque thunk est paresseux → seule la source réellement
+// affichée déclenche un appel LLM. `draft` (avant curseur) sert de continuation.
+const autocompletion = async (draft: string, paragraph: string) => {
+  const active = sourcesStore.sources.filter((s) => s.active)
+  if (active.length === 0) {
+    toastInfo('Ajoutez (et cochez) des sources pour obtenir des complétions.', 'Aucune source active')
     return []
   }
 
-  return context.map((doc) => generateCompletion(text, doc))
+  // Requête = paragraphe courant ; repli sur la fin du brouillon s'il est vide (début de bloc).
+  const query = paragraph.trim() || draft.slice(-500)
+  const ranked = await rankSources(
+    query,
+    active.map((s) => s.id)
+  )
+  if (ranked.length === 0) {
+    toastInfo('Aucune source pertinente pour ce passage.', 'Pas de contexte')
+    return []
+  }
+
+  // Un thunk par source, classées par pertinence. Le contexte (entier ou top-chunks)
+  // n'est résolu qu'au moment où la source est affichée.
+  return ranked.map((r) => async (onChunk?: (partial: Completion) => void) => {
+    const src = sourcesStore.getSourceById(r.sourceId)
+    if (!src) return { answer: '', context: { id: '', pageContent: '', metadata: {} } }
+    const context = await buildSourceContext(query, r.sourceId, src.content, WHOLE_SEND_CHARS)
+    return autocompleteText(draft, { id: src.id, title: src.title, context }, onChunk)
+  })
 }
 
 const shorten = async (text: string) => {

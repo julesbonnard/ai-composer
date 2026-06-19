@@ -1,6 +1,7 @@
 import { CreateMLCEngine, type MLCEngineInterface } from '@mlc-ai/web-llm'
 import { buildPrompt, type Task } from '../prompts'
 import type { TokenUsage } from '../activity'
+import type { OnChunk } from '../engine'
 import { reportOverallProgress, clearProgress } from './loading'
 
 // Moteur WebLLM (MLC) — inférence 100% navigateur via WebGPU. Génération ET embeddings
@@ -34,7 +35,8 @@ export async function webllmComplete(
   text: string,
   context: string | undefined,
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onChunk?: OnChunk
 ): Promise<{ text: string; usage?: TokenUsage }> {
   const engine = await getEngine(model)
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -42,21 +44,36 @@ export async function webllmComplete(
   // Annulation (Échap) : MLC interrompt la génération en cours.
   const onAbort = () => engine.interruptGenerate()
   signal?.addEventListener('abort', onAbort, { once: true })
+  const { system, user } = buildPrompt(task, text, context)
   try {
-    const reply = await engine.chat.completions.create({
-      messages: [{ role: 'user', content: buildPrompt(task, text, context) }],
+    // Flux SSE MLC : on relaie chaque delta ; include_usage → l'usage arrive dans
+    // le dernier chunk (choices vide).
+    const stream = await engine.chat.completions.create({
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user }
+      ],
       temperature: 0.5,
-      stream: false
+      stream: true,
+      stream_options: { include_usage: true }
     })
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    const output = reply.choices[0]?.message?.content ?? ''
-    return {
-      text: typeof output === 'string' ? output : '',
-      usage: {
-        inputTokens: reply.usage?.prompt_tokens,
-        outputTokens: reply.usage?.completion_tokens
+    let full = ''
+    let usage: TokenUsage | undefined
+    for await (const chunk of stream) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      const delta = chunk.choices[0]?.delta?.content ?? ''
+      if (delta) {
+        full += delta
+        onChunk?.(delta)
+      }
+      if (chunk.usage) {
+        usage = {
+          inputTokens: chunk.usage.prompt_tokens,
+          outputTokens: chunk.usage.completion_tokens
+        }
       }
     }
+    return { text: full, usage }
   } finally {
     signal?.removeEventListener('abort', onAbort)
   }

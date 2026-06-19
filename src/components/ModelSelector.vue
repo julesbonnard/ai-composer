@@ -3,9 +3,19 @@ import { computed, watch } from 'vue'
 import modelsConfig from '../config/models'
 import { useSettingsStore } from '../stores/settings'
 import type { ApiKeys } from '../stores/settings'
+import { embeddingsSelection as loadedEmbeddings } from '../plugins/ai'
 import SigninHF from './SigninHF.vue'
 
 const { apiKeys, llmSelection, embeddingsSelection, contextSelection } = useSettingsStore()
+
+// Le modèle d'embeddings est figé au chargement (cohérence avec le vector store
+// hydraté cette session). Si la sélection diffère de la valeur chargée, il faut
+// recharger pour ré-embedder les sources avec les bonnes dimensions.
+const embeddingsNeedReload = computed(
+  () =>
+    embeddingsSelection.provider !== loadedEmbeddings.provider ||
+    embeddingsSelection.model !== loadedEmbeddings.model
+)
 
 // Liste des providers disponibles
 const providers = Object.keys(modelsConfig) as Array<keyof typeof modelsConfig>
@@ -47,6 +57,10 @@ watch(
 // Fonction pour vérifier si un provider est local
 function isLocalProvider(provider: string): boolean {
   return modelsConfig[provider as keyof typeof modelsConfig]?.local || false
+}
+
+function reloadPage(): void {
+  window.location.reload()
 }
 
 // Fonction pour vérifier si on doit afficher le champ API key
@@ -156,6 +170,14 @@ function shouldShowApiKeyField(provider: string): boolean {
           class="input input-bordered w-full mt-1"
         />
       </label>
+
+      <div v-if="embeddingsNeedReload" role="alert" class="alert alert-warning alert-soft">
+        <span class="icon-[tabler--refresh] size-5"></span>
+        <span>
+          Reload the page to apply the new embeddings model — your sources will be re-embedded.
+        </span>
+        <button class="btn btn-sm btn-warning" @click="reloadPage">Reload</button>
+      </div>
     </section>
 
     <!-- Message pour HuggingFace OAuth -->

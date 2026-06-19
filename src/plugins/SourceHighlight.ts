@@ -29,6 +29,25 @@ const SourceHighlight = Extension.create({
         props: {
           decorations(state) {
             return this.getState(state)
+          },
+          // Surlignage transitoire : toute interaction de l'utilisateur (clic ou
+          // frappe) dans la source le retire. Sinon il restait collé sans moyen de
+          // le faire disparaître.
+          handleDOMEvents: {
+            mousedown: (view) => {
+              const set = sourceHighlightKey.getState(view.state)
+              if (set && set.find().length > 0) {
+                view.dispatch(view.state.tr.setMeta(sourceHighlightKey, { type: 'clear' }))
+              }
+              return false
+            },
+            keydown: (view) => {
+              const set = sourceHighlightKey.getState(view.state)
+              if (set && set.find().length > 0) {
+                view.dispatch(view.state.tr.setMeta(sourceHighlightKey, { type: 'clear' }))
+              }
+              return false
+            }
           }
         }
       })

@@ -43,19 +43,21 @@ volontairement, pas en masse.
 - **Tailwind CSS 4** (via `@tailwindcss/vite`) + **daisyUI 5** + icônes Iconify
 - **Tiptap 3** (ProseMirror) pour l'éditeur
 - **Vercel AI SDK v6** (`ai`) pour l'orchestration LLM + embeddings + RAG via Gateway
-  (a remplacé LangChain.js) ; modèles locaux via `@huggingface/transformers`,
-  `@mlc-ai/web-llm`, `@mediapipe/tasks-genai`. `@langchain/*` plus requis (réf. historique)
+  (a remplacé LangChain.js, **`@langchain/*` retirés**) ; modèles locaux via
+  `@huggingface/transformers`, `@mlc-ai/web-llm`, `@mediapipe/tasks-genai`
 - **pnpm**, TypeScript 6, ESLint 10 (flat config via `@vue/eslint-config-*`), Prettier
 
 ## Architecture
 
 ### Flux d'écriture (cœur du produit)
 1. L'utilisateur ajoute des **sources** (PDF via drag&drop, texte manuel, ou recherche AskNews).
-2. Chaque source est découpée (~1000/200) et **vectorisée** dans le vector store maison
+2. Chaque source est découpée **par paragraphe** et **vectorisée** dans le vector store maison
    persisté (`src/plugins/ai/vectorStore.ts`).
 3. Dans l'éditeur, **Tab** déclenche `autocompletion` : recherche des passages pertinents
-   (similarité MMR, k=4) puis génère une complétion **par source** ; ↑/↓ naviguent entre
-   les propositions, **Tab** insère, **Échap** annule.
+   (**cosinus**, requête = **contexte local** près du curseur — pas tout le document —, dédup
+   1 chunk/source, k=4) puis génère une complétion **par source**, affichée en **ghost text
+   progressif** (streaming token-par-token, cf. `OnChunk` dans `ai/engine.ts`) ; ↑/↓ naviguent
+   entre les propositions, **Tab** insère, **Échap** annule (et coupe la génération).
 4. La complétion insérée est un `<mark class="completion" data-id=… title=…>` qui conserve
    le lien vers la source (extension `Completion`).
 5. **shorten** / **alternative** agissent sur la sélection courante (bubble menu).
@@ -73,7 +75,11 @@ Changer de moteur = changer de provider dans les réglages.
   `gateway` → `engines/remote.ts` (serveur) ; `transformers` → `engines/local.ts` ;
   `webLLM` → `engines/webllm.ts` ; `taskgenai` → `engines/taskgenai.ts` (génération seule,
   **pas d'embeddings**). Enveloppe chaque appel d'`startActivity`/`endActivity` (badge) et
-  traduit les erreurs en toasts lisibles (`reportAiError`).
+  traduit les erreurs en toasts lisibles (`reportAiError`). `complete()` accepte un
+  **`onChunk?(delta)`** (type `OnChunk`) propagé à chaque moteur → **streaming** : les 4
+  moteurs émettent les deltas au fil de l'eau (remote NDJSON, transformers `TextStreamer`,
+  WebLLM `stream:true`, MediaPipe progress listener). Sélection LLM **relue à chaque appel**
+  (`getLlmSelection()`) ; embeddings figée au chargement.
 - `activity.ts` : état réactif `aiActivity` (mode cloud/local, modèle, tokens in/out)
   consommé par `AiActivityBadge.vue`. Tokens **exacts** des deux côtés (Gateway renvoie
   `usage` ; les moteurs locaux comptent via leur tokenizer).
@@ -82,6 +88,8 @@ Changer de moteur = changer de provider dans les réglages.
 - `engines/remote.ts` : `remoteComplete` → `/api/llm`, `remoteEmbed` → `/api/embed`. Tourne
   **côté serveur** via le **Vercel AI Gateway** (slugs `provider/model`), auth OIDC
   (`VERCEL_OIDC_TOKEN`) jamais exposée. **Le Gateway route AUSSI les embeddings.**
+  `remoteComplete` lit un **flux NDJSON** (`{"delta"}…` puis `{"usage"}` ; `{"error"}` si
+  échec en cours de flux) renvoyé par `api/llm.ts` (`streamText`).
 - `engines/local.ts` + `local.worker.ts` : transformers.js (ONNX, WebGPU/WASM), génération +
   embeddings. `engines/webllm.ts` : WebLLM/MLC (WebGPU only, gros téléchargements), génération
   + embeddings. `engines/taskgenai.ts` : MediaPipe (Gemma `.task`), génération seule. Les
@@ -89,11 +97,18 @@ Changer de moteur = changer de provider dans les réglages.
 - `engines/loading.ts` : état réactif **partagé** de progression de téléchargement des
   modèles locaux (`localModelState`, consommé par `LocalModelLoader.vue`), alimenté par les
   trois moteurs navigateur (`reportFileProgress` / `reportOverallProgress`).
-- `selection.ts` : lit `ai-composer-llm-selection` / `ai-composer-embeddings-selection`
-  (une fois au chargement → changer de modèle nécessite un reload).
-- `vectorStore.ts` : vector store maison (cosinus + découpage 1000/200 + dédoublonnage par
-  source), **persisté dans IndexedDB** via `persistence.ts`, clé `chunks:<modèle>` (changer
-  de modèle d'embeddings = dimensions différentes → store vide → ré-embedding).
+- `selection.ts` : lit `ai-composer-llm-selection` / `ai-composer-embeddings-selection`.
+  **LLM/génération** relue à chaque appel (`getLlmSelection()`) → changer de modèle prend
+  effet immédiatement. **Embeddings** figée au chargement (`embeddingsSelection`, doit rester
+  cohérente avec le vector store hydraté/réconcilié de la session) → changer de modèle
+  d'embeddings nécessite un reload (ModelSelector affiche une invite « Reload »).
+- `vectorStore.ts` : vector store maison (cosinus + découpage **par paragraphe**, repli en
+  fenêtres maxSize/overlap pour les paragraphes très longs + dédoublonnage par source),
+  **persisté dans IndexedDB** via `persistence.ts`, clé `chunks:v2:<modèle>` (changer de modèle
+  d'embeddings = dimensions différentes → store vide → ré-embedding). ⚠️ **Préfixes E5** : si
+  le modèle d'embeddings contient « e5 » (défaut `multilingual-e5-small`), l'entrée d'embedding
+  est préfixée `query: ` / `passage: ` (obligatoire pour E5, sinon recherche dégradée) ; le
+  `pageContent` stocké reste brut.
 - `persistence.ts` : helpers IndexedDB génériques (`idb`) — un object store `kv`.
 - `api/llm.ts` / `api/embed.ts` : fonctions serverless Vercel → `generateText` / `embedMany`
   via Gateway. Endpoints à tâches figées (pas un proxy ouvert), garde d'origine + allowlist
@@ -102,11 +117,9 @@ Changer de moteur = changer de provider dans les réglages.
 ⚠️ **Tester** : le distant (Gateway, LLM **et** embeddings) nécessite `/api/*` → lancer
 **`vercel dev`** (pas `pnpm dev`) ou déployer. Les moteurs locaux tournent sous `pnpm dev`.
 
-### Couche LLM legacy — `src/plugins/langchain/` ⚠️ ORPHELIN
-Plus aucun import actif (remplacé par `ai/`). `webLLM/` et `taskgenai.ts` ont été **réécrits**
-en moteurs natifs sous `ai/engines/` (sans LangChain) ; les fichiers `langchain/` restent
-comme **référence historique** uniquement. Les `@langchain/*` subsistent en dépendances mais
-ne sont plus requis par aucun moteur câblé. Ne pas réintroduire d'import depuis l'app.
+### Couche LLM legacy — supprimée ✅
+Le dossier `src/plugins/langchain/` (orphelin) et les dépendances `@langchain/*` ont été
+**retirés** (juin 2026). Tout passe désormais par `ai/`. Ne pas réintroduire `@langchain/*`.
 
 ### Sources de contexte externe — AskNews
 - `src/plugins/asknews.ts` : appelle `/api/asknews` (POST).
@@ -114,11 +127,14 @@ ne sont plus requis par aucun moteur câblé. Ne pas réintroduire d'import depu
   (`@emergentmethods/asknews-typescript-sdk`), filtré sur `domainUrl: ['afp.com']`.
   Les `clientId`/`clientSecret` viennent des réglages utilisateur (envoyés dans le body).
 
-### Éditeur Tiptap — `src/plugins/` (hors langchain)
+### Éditeur Tiptap — `src/plugins/`
 - `Autocompletion.ts` : extension principale (décorations ProseMirror, raccourcis
   clavier Tab/↑/↓/Échap, commandes `shorten`/`alternative`). C'est le fichier le plus
   dense, à lire en premier pour toute évolution de l'UX d'écriture. `shorten`/`alternative`
   enveloppent désormais leur résultat dans la mark `completion` (donc signalés comme IA).
+  Le **ghost text est progressif** : le thunk de complétion (`CompletionThunk`) reçoit un
+  `onChunk` qui re-pose la décoration à chaque incrément ; l'action `add` du plugin **remplace**
+  la décoration courante (une seule active à la fois — placeholder « … » puis chaque delta).
 - `Headline.ts` (h1, titre), `Lead.ts` (chapô), `Completion.ts` (mark de complétion liée
   à une source), `Recognition.ts` (mark, entités), `Limit.ts` (compteur de signes/mots
   avec dépassement signalé en rouge). Schéma de doc : `headline lead (paragraph|heading)*`.
@@ -200,9 +216,9 @@ Ollama retiré (faute de moteur câblé).
   ⚠️ **WebLLM** exige WebGPU (pas de repli WASM). ⚠️ **MediaPipe** (`taskgenai`) a besoin que
   les fichiers `.task` soient hébergés et de **`VITE_TASKGENAI_BASE_URL`** (sinon erreur claire
   au runtime) ; sans embeddings côté MediaPipe. Pas encore d'UI de téléchargement des modèles.
-- `langchain/webLLM/` et `langchain/taskgenai.ts` ne sont plus que des **références
-  historiques** (réécrits en `ai/engines/`) ; les `@langchain/*` ne sont plus requis par les
-  moteurs câblés mais restent en dépendances.
+- `@langchain/*` (deps) et le dossier orphelin `src/plugins/langchain/` ont été **supprimés**
+  (juin 2026). Tout passe par `ai/engines/`. Après un pull, lancer `pnpm install` pour purger
+  le lockfile.
 - Rewrites SPA + headers CORS `/api/*` dans **`vercel.json`**. ⚠️ Sous `vercel dev`, la
   réécriture s'applique **devant** Vite : elle doit exclure les chemins d'assets/modules
   (`/@*`, extensions `.*\.`, `/assets/`) sinon Vite reçoit `index.html` pour une requête de
@@ -217,7 +233,6 @@ Ollama retiré (faute de moteur câblé).
   avec repli sur `title`). Les articles **déjà persistés** (clé `article`) chargés depuis
   le JSON `localStorage` perdent la provenance des complétions antérieures (le texte reste) ;
   impact faible vu que les sources ne sont de toute façon pas persistées.
-- `@langchain/community` est marqué **deprecated** en amont (subsiste pour les workers locaux).
 - Routes `get-started` / `GetStarted.vue` présentes mais le lien est commenté dans `HomeView`.
 - CORS de `/api/*` codé en dur sur `https://ai-composer.vercel.app` (`vercel.json`).
 - Variables d'env : `VITE_*` (client, dont `VITE_*_API_KEY` et `VITE_TASKGENAI_BASE_URL`

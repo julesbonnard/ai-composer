@@ -18,12 +18,22 @@ const models: Record<string, ProviderConfig> = {
   gateway: {
     local: false,
     llm: [
+      // — Économiques (adaptés au free tier $5/mois) —
       'google/gemini-2.5-flash-lite', // $0.10 / $0.40 — défaut : rapide, multilingue
       'openai/gpt-5-nano', // $0.05 / $0.40 — le moins cher OpenAI
       'openai/gpt-4.1-nano', // $0.10 / $0.40
       'mistral/ministral-3b', // $0.10 / $0.10 — très bon marché, solide en français
       'mistral/mistral-small', // $0.10 / $0.30 — français
-      'anthropic/claude-3-haiku' // $0.25 / $1.25 — option Anthropic économique
+      'anthropic/claude-3-haiku', // $0.25 / $1.25 — option Anthropic économique
+      // — Hors free tier (qualité supérieure, coût plus élevé) —
+      'google/gemini-2.5-flash', // flash standard (au-dessus de lite)
+      'google/gemini-2.5-pro', // raisonnement Google haut de gamme
+      'google/gemini-3-flash', // génération flash la plus récente
+      'openai/gpt-5', // OpenAI haut de gamme
+      'openai/gpt-4.1', // OpenAI polyvalent
+      'mistral/mistral-large-3', // Mistral haut de gamme (français)
+      'anthropic/claude-sonnet-4.6', // Anthropic équilibré, excellent en rédaction
+      'anthropic/claude-opus-4.8' // Anthropic le plus capable (coût le plus élevé)
     ],
     // Le Gateway route aussi les modèles d'embeddings (slug provider/model, cf.
     // api/embed.ts). Défaut bon marché : openai/text-embedding-3-small.

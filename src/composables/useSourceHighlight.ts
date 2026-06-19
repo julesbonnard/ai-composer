@@ -9,7 +9,10 @@ export const sourceHighlight = reactive({
   sourceId: '',
   offset: -1,
   len: 0,
-  nonce: 0
+  nonce: 0,
+  // Incrémenté pour DEMANDER le retrait du surlignage (p.ex. fermeture du tooltip
+  // de revue côté article) ; SourceEditor.vue l'observe.
+  clearNonce: 0
 })
 
 export function requestSourceHighlight(sourceId: string, offset: number, len: number) {
@@ -17,4 +20,8 @@ export function requestSourceHighlight(sourceId: string, offset: number, len: nu
   sourceHighlight.offset = offset
   sourceHighlight.len = len
   sourceHighlight.nonce++
+}
+
+export function clearSourceHighlight() {
+  sourceHighlight.clearNonce++
 }

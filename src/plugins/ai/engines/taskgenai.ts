@@ -1,6 +1,7 @@
 import { FilesetResolver, LlmInference } from '@mediapipe/tasks-genai'
 import { buildPrompt, type Task } from '../prompts'
 import type { TokenUsage } from '../activity'
+import type { OnChunk } from '../engine'
 import { reportOverallProgress, clearProgress } from './loading'
 
 // Moteur MediaPipe Tasks GenAI — inférence navigateur de modèles Gemma au format
@@ -57,14 +58,20 @@ export async function taskgenaiComplete(
   text: string,
   context: string | undefined,
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onChunk?: OnChunk
 ): Promise<{ text: string; usage?: TokenUsage }> {
   const llm = await getInstance(model)
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-  const prompt = toGemmaPrompt(buildPrompt(task, text, context))
-  const output = await llm.generateResponse(prompt)
-  // MediaPipe n'expose pas d'interruption en cours de génération : best-effort,
-  // on jette le résultat si l'utilisateur a annulé entre-temps.
+  // Gemma (MediaPipe) : un seul tour → on replie system+user dans le prompt.
+  const { system, user } = buildPrompt(task, text, context)
+  const prompt = toGemmaPrompt(`${system}\n\n${user}`)
+  // progressListener (partialResult, done) : partialResult = incrément → onChunk.
+  // L'annulation reste best-effort (MediaPipe n'interrompt pas en cours), mais on
+  // cesse d'émettre les deltas dès que le signal est abort.
+  const output = await llm.generateResponse(prompt, (partialResult) => {
+    if (partialResult && !signal?.aborted) onChunk?.(partialResult)
+  })
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
   let usage: TokenUsage | undefined
