@@ -1,9 +1,9 @@
 import { streamText, APICallError } from 'ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHash } from 'node:crypto'
-import { buildPrompt, type Task } from '../src/plugins/ai/prompts'
-import { rateLimit } from './_rateLimit'
-import models from '../src/config/models'
+import { buildPrompt, type Task } from '../src/plugins/ai/prompts.js'
+import { rateLimit } from './_rateLimit.js'
+import models from '../src/config/models.js'
 
 // Endpoint à tâches journalistiques figées (pas un proxy LLM ouvert), branché sur le
 // Vercel AI Gateway côté serveur. Auth Gateway via OIDC (VERCEL_OIDC_TOKEN) — jamais

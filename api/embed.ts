@@ -1,8 +1,8 @@
 import { embedMany, APICallError } from 'ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHash } from 'node:crypto'
-import { rateLimit } from './_rateLimit'
-import models from '../src/config/models'
+import { rateLimit } from './_rateLimit.js'
+import models from '../src/config/models.js'
 
 // Embeddings via le Vercel AI Gateway côté serveur (auth OIDC — jamais exposée au
 // client), calqué sur api/llm.ts. Le Gateway route bien les modèles d'embeddings
