@@ -1,6 +1,7 @@
 import { embedMany, APICallError } from 'ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHash } from 'node:crypto'
+import { rateLimit } from './_rateLimit'
 import models from '../src/config/models'
 
 // Embeddings via le Vercel AI Gateway côté serveur (auth OIDC — jamais exposée au
@@ -36,6 +37,13 @@ export default async function handler(request: VercelRequest, response: VercelRe
   }
   if (!isAllowedOrigin(request.headers.origin)) {
     return response.status(403).json({ error: 'Forbidden origin' })
+  }
+  // Anti-abus par IP. Limite plus haute que /api/llm : les embeddings partent en salves
+  // (réconciliation des sources au chargement, requête de ranking par Tab).
+  const rl = rateLimit(request, { limit: 60 })
+  if (!rl.ok) {
+    response.setHeader('Retry-After', String(rl.retryAfter))
+    return response.status(429).json({ error: 'Trop de requêtes, réessayez dans un instant.' })
   }
 
   try {

@@ -2,6 +2,7 @@ import { streamText, APICallError } from 'ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHash } from 'node:crypto'
 import { buildPrompt, type Task } from '../src/plugins/ai/prompts'
+import { rateLimit } from './_rateLimit'
 import models from '../src/config/models'
 
 // Endpoint à tâches journalistiques figées (pas un proxy LLM ouvert), branché sur le
@@ -59,6 +60,13 @@ export default async function handler(request: VercelRequest, response: VercelRe
   }
   if (!isAllowedOrigin(request.headers.origin)) {
     return response.status(403).json({ error: 'Forbidden origin' })
+  }
+  // Anti-abus : génération = appels payants. Plafond par IP (le backstop dur reste le
+  // budget AI Gateway). 30/min couvre largement un rédacteur, freine le martèlement scripté.
+  const rl = rateLimit(request, { limit: 30 })
+  if (!rl.ok) {
+    response.setHeader('Retry-After', String(rl.retryAfter))
+    return response.status(429).json({ error: 'Trop de requêtes, réessayez dans un instant.' })
   }
 
   try {
