@@ -24,7 +24,13 @@ import Limit from '../plugins/Limit'
 import Completion from '../plugins/Completion'
 import Autocompletion from '../plugins/Autocompletion'
 import EditorialLinter from '../plugins/EditorialLinter'
-import { lintDoc, type PositionedDiagnostic } from '../plugins/editorial/proseMirror'
+import {
+  lintDoc,
+  buildDispatch,
+  positionSemantic,
+  type PositionedDiagnostic
+} from '../plugins/editorial/proseMirror'
+import { runEditorialAgent } from '../plugins/editorial/agent'
 import type { DispatchType } from 'stylecheck'
 import AiActivityBadge from './AiActivityBadge.vue'
 
@@ -61,6 +67,49 @@ const DISPATCH_TYPES: { value: DispatchType; label: string }[] = [
 function refreshDiagnostics() {
   const doc = editor.value?.state.doc
   diagnostics.value = doc ? lintDoc(doc, currentMeta()).diagnostics : []
+}
+
+// --- Couche sémantique (agent IA, À LA DEMANDE) ----------------------------
+// Déclenchée manuellement (bouton), jamais à la frappe. Le résultat est un
+// instantané : toute édition l'efface (le déterministe reste, lui, live).
+const semanticDiagnostics = ref<PositionedDiagnostic[]>([])
+const aiLoading = ref(false)
+const aiError = ref('')
+let aiRunToken = 0
+
+const SEVERITY_RANK = { blocking: 0, warning: 1, suggestion: 2 } as const
+// Panneau = déterministe + sémantique, triés par gravité.
+const allDiagnostics = computed(() =>
+  [...diagnostics.value, ...semanticDiagnostics.value].sort(
+    (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
+  )
+)
+
+async function runAiLint() {
+  const ed = editor.value
+  if (!ed || aiLoading.value) return
+  aiError.value = ''
+  aiLoading.value = true
+  const runId = ++aiRunToken
+  const { dispatch, blocks } = buildDispatch(ed.state.doc, currentMeta())
+  try {
+    const diags = await runEditorialAgent(dispatch)
+    if (runId !== aiRunToken) return // doc modifié ou relancé entre-temps
+    const positioned = positionSemantic(diags, blocks, dispatch)
+    semanticDiagnostics.value = positioned
+    ed.commands.setSemanticDiagnostics(positioned)
+  } catch (e) {
+    if (runId === aiRunToken) aiError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    if (runId === aiRunToken) aiLoading.value = false
+  }
+}
+
+// Invalide l'instantané IA dès que le doc change (édition).
+function clearSemantic() {
+  aiRunToken++
+  aiLoading.value = false
+  if (semanticDiagnostics.value.length) semanticDiagnostics.value = []
 }
 
 // Suivi de la présence du curseur dans un passage IA (transition true→false =
@@ -121,6 +170,7 @@ const editor = useEditor({
     emits('update:modelValue', editor.getJSON())
     countWords()
     refreshDiagnostics()
+    clearSemantic() // l'analyse IA (instantané) devient caduque dès qu'on édite
   },
   // Quand le curseur quitte un passage IA, le tooltip de revue se ferme : on retire
   // alors le surlignage du segment dans l'éditeur de source (s'il y en avait un).
@@ -154,6 +204,9 @@ function countWords() {
 watch([dispatchType, lang], () => {
   editor.value?.commands.refreshLint()
   refreshDiagnostics()
+  // Le scope a changé → l'analyse IA précédente n'est plus valable.
+  editor.value?.commands.clearSemanticDiagnostics()
+  clearSemantic()
 })
 
 // Panneau « Problèmes » : révéler un diagnostic dans l'éditeur (sélection + scroll).
@@ -331,7 +384,7 @@ function openCompletionSource() {
   >
     <span class="icon-[tabler--list-check] size-4"></span>
     Problèmes
-    <span v-if="diagnostics.length" class="badge badge-sm badge-warning">{{ diagnostics.length }}</span>
+    <span v-if="allDiagnostics.length" class="badge badge-sm badge-warning">{{ allDiagnostics.length }}</span>
   </button>
 
   <aside
@@ -341,8 +394,8 @@ function openCompletionSource() {
     <header class="flex items-center gap-2 border-b border-base-300 px-3 py-2">
       <span class="icon-[tabler--list-check] size-4 text-primary"></span>
       <span class="text-sm font-semibold">Problèmes</span>
-      <span class="badge badge-sm" :class="diagnostics.length ? 'badge-warning' : 'badge-ghost'">
-        {{ diagnostics.length }}
+      <span class="badge badge-sm" :class="allDiagnostics.length ? 'badge-warning' : 'badge-ghost'">
+        {{ allDiagnostics.length }}
       </span>
       <select v-model="dispatchType" class="select select-xs ml-auto w-32" title="Type de dépêche">
         <option v-for="t in DISPATCH_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
@@ -352,13 +405,39 @@ function openCompletionSource() {
       </button>
     </header>
 
+    <!-- Déclenchement MANUEL de l'analyse sémantique (juge IA) — jamais à la frappe. -->
+    <div class="flex items-center gap-2 border-b border-base-300 px-3 py-2">
+      <button
+        class="btn btn-xs btn-primary flex-1 gap-1.5"
+        :disabled="aiLoading"
+        title="Lance le juge éditorial (couche sémantique) sur le texte courant"
+        @click="runAiLint"
+      >
+        <span
+          class="size-3.5"
+          :class="aiLoading ? 'icon-[tabler--loader-2] animate-spin' : 'icon-[tabler--sparkles]'"
+        ></span>
+        {{ aiLoading ? 'Analyse…' : 'Analyser (IA)' }}
+      </button>
+      <span
+        v-if="semanticDiagnostics.length"
+        class="badge badge-xs badge-soft badge-primary"
+        title="Diagnostics IA de la dernière analyse"
+      >
+        {{ semanticDiagnostics.length }} IA
+      </span>
+    </div>
+    <p v-if="aiError" class="border-b border-base-300 px-3 py-1.5 text-[11px] text-error">
+      {{ aiError }}
+    </p>
+
     <div class="overflow-y-auto p-2">
-      <p v-if="!diagnostics.length" class="px-2 py-6 text-center text-sm text-base-content/50">
+      <p v-if="!allDiagnostics.length" class="px-2 py-6 text-center text-sm text-base-content/50">
         Aucun problème détecté ✨
       </p>
       <ul v-else class="flex flex-col gap-1">
         <li
-          v-for="(diag, i) in diagnostics"
+          v-for="(diag, i) in allDiagnostics"
           :key="i"
           class="group cursor-pointer rounded-field border border-transparent p-2 hover:border-base-300 hover:bg-base-200/60"
           @click="revealDiagnostic(diag)"
@@ -376,10 +455,25 @@ function openCompletionSource() {
               ]"
             ></span>
             <span class="font-mono text-[11px] text-base-content/50">{{ diag.ruleId }}</span>
+            <span
+              v-if="diag.family === 'semantic'"
+              class="badge badge-xs badge-soft badge-primary ml-auto gap-1"
+              title="Diagnostic sémantique (juge IA) — advisory"
+            >
+              <span class="icon-[tabler--sparkles] size-3"></span> IA
+            </span>
           </div>
           <p class="mt-0.5 text-xs leading-snug text-base-content/80">{{ diag.message }}</p>
           <p v-if="diagExcerpt(diag)" class="mt-0.5 truncate text-[11px] italic text-base-content/50">
             « {{ diagExcerpt(diag) }} »
+          </p>
+          <p
+            v-if="diag.citation"
+            class="mt-0.5 text-[11px] text-base-content/45"
+            :title="diag.citation.ref"
+          >
+            <span class="icon-[tabler--book-2] size-3 align-text-bottom"></span>
+            {{ diag.citation.title }}
           </p>
           <button
             v-if="diag.suggestion"
@@ -459,6 +553,12 @@ function openCompletionSource() {
 
 .article-editor .ProseMirror .stylecheck-suggestion {
   text-decoration-color: var(--color-info);
+}
+
+/* Diagnostics SÉMANTIQUES (juge IA, à la demande) : tireté (vs ondulé du
+   déterministe) — distingue visuellement le « advisory » du mécanique. */
+.article-editor .ProseMirror .stylecheck-semantic {
+  text-decoration-style: dashed;
 }
 
 .article-editor .ProseMirror strong {
