@@ -6,9 +6,11 @@
     "src/**/*.vue",
     "../afpstyle/stylecheck/src/index.ts",
     "../afpstyle/stylecheck/src/lint.ts",
+    "../afpstyle/stylecheck/src/judge.ts",
     "../afpstyle/stylecheck/src/checks.ts",
     "../afpstyle/stylecheck/src/diagnostic.ts",
-    "../afpstyle/stylecheck/src/rules.json"
+    "../afpstyle/stylecheck/src/rules.json",
+    "../afpstyle/stylecheck/src/skills.json"
   ],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
