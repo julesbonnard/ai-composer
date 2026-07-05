@@ -219,6 +219,17 @@ function revealDiagnostic(diag: PositionedDiagnostic) {
     .run()
 }
 
+// Lien vers la page du stylebook d'où vient la règle (déterministe ou sémantique).
+const STYLEBOOK_BASE = 'https://stylebook.afp.com/'
+function stylebookRef(diag: PositionedDiagnostic): string {
+  return diag.source?.page ?? diag.citation?.ref ?? ''
+}
+function stylebookUrl(diag: PositionedDiagnostic): string | null {
+  const ref = stylebookRef(diag)
+  if (!ref) return null
+  return STYLEBOOK_BASE + ref.split('#')[0] // le fragment (#733) n'est pas une ancre du wiki
+}
+
 // Extrait de texte incriminé (tronqué) pour l'affichage dans le panneau.
 function diagExcerpt(diag: PositionedDiagnostic): string {
   const text = editor.value?.state.doc.textBetween(diag.from, diag.to, ' ') ?? ''
@@ -304,6 +315,9 @@ function openCompletionSource() {
 </script>
 
 <template>
+  <div class="flex h-full min-h-0">
+    <!-- Colonne ÉDITEUR : scroll indépendant, jamais recouvert par le panneau -->
+    <section class="relative flex-1 min-w-0 overflow-y-auto">
   <div class="sticky top-0 z-50 h-1.5 bg-base-200/80 backdrop-blur-sm overflow-x-hidden"
     :title="`${wordCount} words`">
     <div :style="`width: ${Math.min((wordCount / wordCountMax) * 100, 100)}%`"
@@ -373,24 +387,25 @@ function openCompletionSource() {
     </div>
   </bubble-menu>
 
-  <editor-content :editor="editor" spellcheck="true" class="article-editor" />
+      <editor-content :editor="editor" spellcheck="true" class="article-editor" />
+    </section>
 
-  <!-- Panneau « Problèmes » (façon IDE) : diagnostics du linter éditorial -->
-  <button
-    v-if="!panelOpen"
-    class="btn btn-sm btn-neutral fixed bottom-4 right-4 z-40 shadow-lg gap-1.5"
-    title="Ouvrir le panneau des problèmes éditoriaux"
-    @click="panelOpen = true"
-  >
-    <span class="icon-[tabler--list-check] size-4"></span>
-    Problèmes
-    <span v-if="allDiagnostics.length" class="badge badge-sm badge-warning">{{ allDiagnostics.length }}</span>
-  </button>
+    <!-- Rail de réouverture quand le panneau est fermé (n'empiète pas sur le texte) -->
+    <button
+      v-if="!panelOpen"
+      class="flex w-9 shrink-0 flex-col items-center gap-2 border-l border-base-300 bg-base-200/60 py-3 hover:bg-base-200"
+      title="Ouvrir le panneau des problèmes éditoriaux"
+      @click="panelOpen = true"
+    >
+      <span class="icon-[tabler--layout-sidebar-right-expand] size-4 text-base-content/60"></span>
+      <span v-if="allDiagnostics.length" class="badge badge-xs badge-warning">{{ allDiagnostics.length }}</span>
+    </button>
 
-  <aside
-    v-if="panelOpen"
-    class="fixed right-4 top-20 z-40 flex max-h-[75vh] w-80 flex-col rounded-box border border-base-300 bg-base-100 shadow-xl"
-  >
+    <!-- Colonne PANNEAU « Problèmes » : ouvrable/repliable comme le lecteur de sources -->
+    <aside
+      v-if="panelOpen"
+      class="flex w-96 shrink-0 flex-col border-l border-base-300 bg-base-100"
+    >
     <header class="flex items-center gap-2 border-b border-base-300 px-3 py-2">
       <span class="icon-[tabler--list-check] size-4 text-primary"></span>
       <span class="text-sm font-semibold">Problèmes</span>
@@ -431,7 +446,7 @@ function openCompletionSource() {
       {{ aiError }}
     </p>
 
-    <div class="overflow-y-auto p-2">
+    <div class="flex-1 overflow-y-auto p-2">
       <p v-if="!allDiagnostics.length" class="px-2 py-6 text-center text-sm text-base-content/50">
         Aucun problème détecté ✨
       </p>
@@ -467,14 +482,19 @@ function openCompletionSource() {
           <p v-if="diagExcerpt(diag)" class="mt-0.5 truncate text-[11px] italic text-base-content/50">
             « {{ diagExcerpt(diag) }} »
           </p>
-          <p
-            v-if="diag.citation"
-            class="mt-0.5 text-[11px] text-base-content/45"
-            :title="diag.citation.ref"
+          <a
+            v-if="stylebookUrl(diag)"
+            :href="stylebookUrl(diag)!"
+            target="_blank"
+            rel="noopener"
+            class="mt-0.5 inline-flex items-center gap-1 text-[11px] text-base-content/45 hover:text-primary hover:underline"
+            :title="`Ouvrir dans le stylebook : ${stylebookRef(diag)}`"
+            @click.stop
           >
-            <span class="icon-[tabler--book-2] size-3 align-text-bottom"></span>
-            {{ diag.citation.title }}
-          </p>
+            <span class="icon-[tabler--book-2] size-3"></span>
+            {{ diag.citation?.title ?? stylebookRef(diag) }}
+            <span class="icon-[tabler--external-link] size-3"></span>
+          </a>
           <button
             v-if="diag.suggestion"
             class="btn btn-xs btn-primary btn-soft mt-1.5"
@@ -486,11 +506,11 @@ function openCompletionSource() {
         </li>
       </ul>
     </div>
-  </aside>
+    </aside>
 
-  <!-- Retour visuel discret de l'usage IA (moteur, modèle, tokens) -->
-  <ai-activity-badge />
-
+    <!-- Retour visuel discret de l'usage IA (moteur, modèle, tokens) -->
+    <ai-activity-badge />
+  </div>
 </template>
 
 <style>

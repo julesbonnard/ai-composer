@@ -132,7 +132,7 @@ async function reset() {
 
   <RouterView class="col-start-2 row-start-1" />
 
-  <article class="col-start-3 overflow-y-auto">
+  <article class="col-start-3 min-h-0 overflow-hidden">
     <TiptapEditor
       v-model="article"
       ref="editor"
