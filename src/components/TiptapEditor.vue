@@ -497,11 +497,11 @@ function openCompletionSource() {
           </a>
           <button
             v-if="diag.suggestion"
-            class="btn btn-xs btn-primary btn-soft mt-1.5"
+            class="btn btn-xs btn-primary btn-soft mt-1.5 h-auto min-h-6 items-start whitespace-normal py-1 text-left leading-snug"
             @click.stop="fixDiagnostic(diag)"
           >
-            <span class="icon-[tabler--wand] size-3.5"></span>
-            Corriger → « {{ diag.suggestion }} »
+            <span class="icon-[tabler--wand] size-3.5 mt-0.5 shrink-0"></span>
+            <span class="break-words">Corriger → « {{ diag.suggestion }} »</span>
           </button>
         </li>
       </ul>
