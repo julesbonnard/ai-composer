@@ -1,6 +1,12 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+
+// stylecheck (linter éditorial) est consommé comme librairie locale depuis le
+// repo voisin ~/web/afpstyle/stylecheck — pas de code dupliqué. Alias vers son
+// point d'entrée source (HMR conservé) + autorisation d'accès hors racine.
+const stylecheckSrc = fileURLToPath(new URL('../afpstyle/stylecheck/src', import.meta.url))
 
 // Build SPA Vite standard. Vercel détecte et déploie nativement le dossier `api/`
 // comme fonctions serverless ; les rewrites (fallback SPA) et headers CORS sont
@@ -10,6 +16,15 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   server: {
     port: process.env.PORT as unknown as number,
+    fs: {
+      // Autorise Vite à servir le source de stylecheck (hors racine du projet).
+      allow: ['.', stylecheckSrc],
+    },
+  },
+  resolve: {
+    alias: {
+      stylecheck: `${stylecheckSrc}/index.ts`,
+    },
   },
   plugins: [vue(), tailwindcss()],
   // Pré-bundle transformers.js au démarrage : sinon il est optimisé à la volée quand

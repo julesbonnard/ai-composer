@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emits = defineEmits(['update:modelValue'])
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { requestSourceHighlight, clearSourceHighlight } from '../composables/useSourceHighlight'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
@@ -23,6 +23,9 @@ import Headline from '../plugins/Headline'
 import Limit from '../plugins/Limit'
 import Completion from '../plugins/Completion'
 import Autocompletion from '../plugins/Autocompletion'
+import EditorialLinter from '../plugins/EditorialLinter'
+import { lintDoc, type PositionedDiagnostic } from '../plugins/editorial/proseMirror'
+import type { DispatchType } from 'stylecheck'
 import AiActivityBadge from './AiActivityBadge.vue'
 
 const Article = Document.extend({
@@ -30,6 +33,36 @@ const Article = Document.extend({
 })
 
 const wordCount = ref(0)
+
+// --- Linter éditorial (stylecheck) -----------------------------------------
+// Métadonnées de la dépêche (type/langue) : pilotent le pré-filtrage par scope.
+const dispatchType = ref<DispatchType>('pg')
+const lang = ref('fr')
+const currentMeta = () => ({ type: dispatchType.value, lang: lang.value })
+
+// Liste des diagnostics positionnés, alimentant le panneau « Problèmes ».
+const diagnostics = ref<PositionedDiagnostic[]>([])
+const panelOpen = ref(true)
+const SEVERITY_META = {
+  blocking: { label: 'Bloquant', icon: 'icon-[tabler--ban]' },
+  warning: { label: 'Avertissement', icon: 'icon-[tabler--alert-triangle]' },
+  suggestion: { label: 'Suggestion', icon: 'icon-[tabler--bulb]' }
+} as const
+
+const DISPATCH_TYPES: { value: DispatchType; label: string }[] = [
+  { value: 'flash', label: 'Flash' },
+  { value: 'alerte', label: 'Alerte' },
+  { value: 'urgent', label: 'Urgent' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'pg', label: 'Papier général' },
+  { value: 'factuel', label: 'Factuel court' }
+]
+
+function refreshDiagnostics() {
+  const doc = editor.value?.state.doc
+  diagnostics.value = doc ? lintDoc(doc, currentMeta()).diagnostics : []
+}
+
 // Suivi de la présence du curseur dans un passage IA (transition true→false =
 // fermeture du tooltip de revue → clear du surlignage source).
 let wasInCompletion = false
@@ -62,6 +95,9 @@ const editor = useEditor({
         }
       }
     }),
+    EditorialLinter.configure({
+      getMeta: currentMeta
+    }),
     Placeholder.configure({
       showOnlyCurrent: false,
       placeholder: ({ node }) => {
@@ -84,6 +120,7 @@ const editor = useEditor({
   onUpdate: ({ editor }) => {
     emits('update:modelValue', editor.getJSON())
     countWords()
+    refreshDiagnostics()
   },
   // Quand le curseur quitte un passage IA, le tooltip de revue se ferme : on retire
   // alors le surlignage du segment dans l'éditeur de source (s'il y en avait un).
@@ -94,6 +131,7 @@ const editor = useEditor({
   },
   onCreate: () => {
     countWords()
+    refreshDiagnostics()
   },
   autofocus: true,
   editable: true,
@@ -110,6 +148,38 @@ function countWords() {
         d.textContent ? acc + d.textContent.split(' ').filter((d) => d !== '').length : acc,
       0
     )
+}
+
+// Re-lint quand les métadonnées changent (le scope des règles en dépend).
+watch([dispatchType, lang], () => {
+  editor.value?.commands.refreshLint()
+  refreshDiagnostics()
+})
+
+// Panneau « Problèmes » : révéler un diagnostic dans l'éditeur (sélection + scroll).
+function revealDiagnostic(diag: PositionedDiagnostic) {
+  editor.value
+    ?.chain()
+    .focus()
+    .setTextSelection({ from: diag.from, to: diag.to })
+    .scrollIntoView()
+    .run()
+}
+
+// Extrait de texte incriminé (tronqué) pour l'affichage dans le panneau.
+function diagExcerpt(diag: PositionedDiagnostic): string {
+  const text = editor.value?.state.doc.textBetween(diag.from, diag.to, ' ') ?? ''
+  return text.length > 70 ? `${text.slice(0, 67)}…` : text
+}
+
+// Applique la suggestion (auto-fix façon ESLint) en remplaçant le passage incriminé.
+function fixDiagnostic(diag: PositionedDiagnostic) {
+  if (!diag.suggestion) return
+  editor.value
+    ?.chain()
+    .focus()
+    .insertContentAt({ from: diag.from, to: diag.to }, diag.suggestion)
+    .run()
 }
 
 function reset() {
@@ -252,6 +322,78 @@ function openCompletionSource() {
 
   <editor-content :editor="editor" spellcheck="true" class="article-editor" />
 
+  <!-- Panneau « Problèmes » (façon IDE) : diagnostics du linter éditorial -->
+  <button
+    v-if="!panelOpen"
+    class="btn btn-sm btn-neutral fixed bottom-4 right-4 z-40 shadow-lg gap-1.5"
+    title="Ouvrir le panneau des problèmes éditoriaux"
+    @click="panelOpen = true"
+  >
+    <span class="icon-[tabler--list-check] size-4"></span>
+    Problèmes
+    <span v-if="diagnostics.length" class="badge badge-sm badge-warning">{{ diagnostics.length }}</span>
+  </button>
+
+  <aside
+    v-if="panelOpen"
+    class="fixed right-4 top-20 z-40 flex max-h-[75vh] w-80 flex-col rounded-box border border-base-300 bg-base-100 shadow-xl"
+  >
+    <header class="flex items-center gap-2 border-b border-base-300 px-3 py-2">
+      <span class="icon-[tabler--list-check] size-4 text-primary"></span>
+      <span class="text-sm font-semibold">Problèmes</span>
+      <span class="badge badge-sm" :class="diagnostics.length ? 'badge-warning' : 'badge-ghost'">
+        {{ diagnostics.length }}
+      </span>
+      <select v-model="dispatchType" class="select select-xs ml-auto w-32" title="Type de dépêche">
+        <option v-for="t in DISPATCH_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+      </select>
+      <button class="btn btn-xs btn-ghost btn-square" title="Fermer" @click="panelOpen = false">
+        <span class="icon-[tabler--x] size-4"></span>
+      </button>
+    </header>
+
+    <div class="overflow-y-auto p-2">
+      <p v-if="!diagnostics.length" class="px-2 py-6 text-center text-sm text-base-content/50">
+        Aucun problème détecté ✨
+      </p>
+      <ul v-else class="flex flex-col gap-1">
+        <li
+          v-for="(diag, i) in diagnostics"
+          :key="i"
+          class="group cursor-pointer rounded-field border border-transparent p-2 hover:border-base-300 hover:bg-base-200/60"
+          @click="revealDiagnostic(diag)"
+        >
+          <div class="flex items-center gap-1.5">
+            <span
+              class="size-4 shrink-0"
+              :class="[
+                SEVERITY_META[diag.severity].icon,
+                diag.severity === 'blocking'
+                  ? 'text-error'
+                  : diag.severity === 'warning'
+                    ? 'text-warning'
+                    : 'text-info'
+              ]"
+            ></span>
+            <span class="font-mono text-[11px] text-base-content/50">{{ diag.ruleId }}</span>
+          </div>
+          <p class="mt-0.5 text-xs leading-snug text-base-content/80">{{ diag.message }}</p>
+          <p v-if="diagExcerpt(diag)" class="mt-0.5 truncate text-[11px] italic text-base-content/50">
+            « {{ diagExcerpt(diag) }} »
+          </p>
+          <button
+            v-if="diag.suggestion"
+            class="btn btn-xs btn-primary btn-soft mt-1.5"
+            @click.stop="fixDiagnostic(diag)"
+          >
+            <span class="icon-[tabler--wand] size-3.5"></span>
+            Corriger → « {{ diag.suggestion }} »
+          </button>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
   <!-- Retour visuel discret de l'usage IA (moteur, modèle, tokens) -->
   <ai-activity-badge />
 
@@ -294,6 +436,29 @@ function openCompletionSource() {
 
 .article-editor .ProseMirror .unvalid {
   @apply text-error;
+}
+
+/* Diagnostics du linter éditorial (stylecheck) : soulignage ondulé par gravité.
+   Le message + la suggestion s'affichent au survol via l'attribut `title` natif. */
+.article-editor .ProseMirror .stylecheck-diag {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.article-editor .ProseMirror .stylecheck-blocking {
+  text-decoration-color: var(--color-error);
+  background-color: color-mix(in oklab, var(--color-error) 10%, transparent);
+}
+
+.article-editor .ProseMirror .stylecheck-warning {
+  text-decoration-color: var(--color-warning);
+}
+
+.article-editor .ProseMirror .stylecheck-suggestion {
+  text-decoration-color: var(--color-info);
 }
 
 .article-editor .ProseMirror strong {
