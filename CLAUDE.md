@@ -151,6 +151,14 @@ Le dossier `src/plugins/langchain/` (orphelin) et les dépendances `@langchain/*
   `.article-editor` (`TiptapEditor.vue`) ; l'éditeur de sources a ses propres styles sous
   `.source-editor` (sans-serif compact, `SourceEditor.vue`). Ne pas remettre de règle
   `.ProseMirror` globale (elle fuiterait entre les deux éditeurs).
+- **Linter éditorial `stylecheck`** (branche `feat/stylecheck-linter` uniquement) :
+  `EditorialLinter.ts` (généralise `Limit.ts`) + `editorial/proseMirror.ts` (mapping
+  offsets-texte ↔ positions PM) + `editorial/agent.ts` (juge IA via `/api/judge`). Le cœur
+  vient du **repo voisin `~/web/afpstyle/stylecheck`** consommé en librairie locale via
+  **alias Vite** (`resolve.alias.stylecheck` + `server.fs.allow`) + `tsconfig` paths — pas de
+  code dupliqué. **Deux vitesses** : déterministe à la frappe (colonne « Problèmes », squiggle
+  ondulé) ; sémantique **à la demande** (bouton « Analyser (IA) », squiggle tireté, effacé dès
+  qu'on édite). `/api/judge` = juge non-streaming via AI Gateway (clé jamais au client).
 
 ### État — `src/stores/`
 - `editor.ts` : document Tiptap courant, persisté dans `localStorage` (clé `article`).
@@ -243,3 +251,7 @@ Ollama retiré (faute de moteur câblé).
 
 `dev` = branche principale (PR vers `dev`). Nombreuses branches de fonctionnalités
 historiques (`tiptap`, `supabase`, `slides`, `legacy`, `no-server`, etc.).
+
+`feat/stylecheck-linter` = intégration du linter éditorial `stylecheck` (cf. section
+Éditeur Tiptap). Isolée de `dev` ; le cœur reste dans `~/web/afpstyle/stylecheck`
+(consommé par alias, non dupliqué).
